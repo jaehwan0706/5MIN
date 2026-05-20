@@ -1,0 +1,254 @@
+// =============================================================
+// 5MIN (LifeLine) - Prisma Schema (MySQL / AWS RDS or Aurora)
+// =============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+  // AWS RDS 예시: mysql://user:password@your-rds-endpoint.rds.amazonaws.com:3306/fivemin
+}
+
+// =============================================================
+// ENUMS
+// =============================================================
+
+enum HospitalLevel {
+  LEVEL_1    // 권역응급의료센터
+  LEVEL_2    // 지역응급의료센터
+  LEVEL_3    // 지역응급의료기관
+  NIGHT_CARE // 달빛어린이병원 (정부 지정)
+}
+
+enum AlertSeverity {
+  WARNING
+  CRITICAL
+}
+
+enum EquipmentType {
+  CT
+  MRI
+  ANGIO
+  VENTILATOR
+  ECMO
+  DEFIBRILLATOR
+}
+
+enum ReportType {
+  WAIT_TIME         // 대기 시간 제보
+  PEDIATRIC_CLOSED  // 소아과 마감
+  CAPACITY_FULL     // 병상 만석
+  EQUIPMENT_DOWN    // 장비 점검
+  OTHER
+}
+
+// =============================================================
+// 1. Hospital (병원 마스터)
+// =============================================================
+
+model Hospital {
+  id                     String  @id @default(uuid())
+  openApiId              String? @unique @map("open_api_id") @db.VarChar(20)
+  // 국립중앙의료원 오픈API 기관코드 (e-gen.or.kr)
+  name                   String  @db.VarChar(100)
+  address                String  @db.Text
+  lat                    Decimal @db.Decimal(10, 7) // 위도
+  lng                    Decimal @db.Decimal(10, 7) // 경도
+  phone                  String? @db.VarChar(20)
+  hospitalLevel          HospitalLevel @map("hospital_level")
+  isPediatricSpecialized Boolean @default(false) @map("is_pediatric_specialized")
+  isMoonlightHospital    Boolean @default(false) @map("is_moonlight_hospital")
+  // 달빛어린이병원: 야간·주말 소아 진료 가능 (소아/야간 탭 필터 기준)
+  isOpen24h              Boolean @default(false) @map("is_open_24h")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  realtimeStatus         HospitalRealtimeStatus?
+  equipment              HospitalEquipment[]
+  alerts                 HospitalAlert[]
+  favorites              Favorite[]
+  reports                HospitalReport[]
+
+  // 반경 탐색은 Haversine 공식으로 처리 (lat·lng 복합 인덱스)
+  @@index([lat, lng])
+  @@index([isPediatricSpecialized])
+  @@index([isMoonlightHospital])
+  @@map("hospitals")
+}
+
+// =============================================================
+// 2. HospitalRealtimeStatus (실시간 병상 현황)
+//    오픈API 폴링 + 백오피스 수동 입력으로 갱신
+//    혼잡도 계산: 앱/서버에서 아래 기준으로 컴퓨팅
+//      GREEN  (여유) : 5석 이상
+//      YELLOW (주의) : 1~4석
+//      RED    (혼잡) : 0석
+// =============================================================
+
+model HospitalRealtimeStatus {
+  id                       String  @id @default(uuid())
+  hospitalId               String  @unique @map("hospital_id")
+
+  adultBedsTotal           Int     @default(0) @map("adult_beds_total")
+  adultBedsAvailable       Int     @default(0) @map("adult_beds_available")
+
+  pediatricBedsTotal       Int     @default(0) @map("pediatric_beds_total")
+  pediatricBedsAvailable   Int     @default(0) @map("pediatric_beds_available")
+
+  isolationBedsTotal       Int     @default(0) @map("isolation_beds_total")
+  isolationBedsAvailable   Int     @default(0) @map("isolation_beds_available")
+
+  // 소아청소년과 전문의 현재 상주 여부 (소아/야간 탭 최상단 강조)
+  pediatricSpecialistOnDuty Boolean @default(false) @map("pediatric_specialist_on_duty")
+
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  hospital                 Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt(sort: Desc)])
+  @@map("hospital_realtime_status")
+}
+
+// =============================================================
+// 3. HospitalEquipment (장비 가동 현황)
+//    백오피스 입력 → 목록 탭 카드에서 실시간 제한 고지 배너 연동
+// =============================================================
+
+model HospitalEquipment {
+  id          String        @id @default(uuid())
+  hospitalId  String        @map("hospital_id")
+  equipment   EquipmentType
+  isAvailable Boolean       @default(true) @map("is_available")
+  note        String?       @db.Text
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  hospital    Hospital      @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@unique([hospitalId, equipment])
+  @@map("hospital_equipment")
+}
+
+// =============================================================
+// 4. HospitalAlert (실시간 제한 고지 배너)
+//    백오피스에서 입력 → 병원 카드 최상단 옐로우/레드 배너 강제 노출
+//    예: "현재 CT 장비 점검으로 뇌질환 환자 수용 불가"
+//       "소아과 의사 부재"
+// =============================================================
+
+model HospitalAlert {
+  id         String        @id @default(uuid())
+  hospitalId String        @map("hospital_id")
+  alertType  String        @map("alert_type") @db.VarChar(60)
+  // 'CT_DOWN' | 'MRI_DOWN' | 'NO_PEDIATRIC_DOCTOR' | 'CAPACITY_FULL' 등
+  message    String        @db.Text
+  severity   AlertSeverity @default(WARNING)
+  isActive   Boolean       @default(true) @map("is_active")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  expiresAt  DateTime?     @map("expires_at") // null이면 수동 해제 전까지 유지
+
+  hospital   Hospital      @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@index([hospitalId, isActive])
+  @@map("hospital_alerts")
+}
+
+// =============================================================
+// 5. User (사용자 - 익명 디바이스 식별만)
+//    개인 의료정보(Medical ID)는 디바이스 로컬에만 저장
+// =============================================================
+
+model User {
+  id        String   @id @default(uuid())
+  deviceId  String   @unique @map("device_id") @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  favorites Favorite[]
+  reports   HospitalReport[]
+
+  @@map("users")
+}
+
+// =============================================================
+// 6. Favorite (즐겨찾기)
+//    목록 탭 상단 [⭐ 즐겨찾기] 퀵 필터 칩과 연동
+// =============================================================
+
+model Favorite {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  hospitalId String   @map("hospital_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hospital   Hospital @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, hospitalId])
+  @@index([userId])
+  @@map("favorites")
+}
+
+// =============================================================
+// 7. GoldenTimeCategory (골든타임 탭 - 카테고리)
+//    거대 사각형 그리드 버튼으로 화면 전체 배치
+// =============================================================
+
+model GoldenTimeCategory {
+  id            String  @id @default(uuid())
+  title         String  @db.VarChar(60)   // "심폐소생술 (CPR)"
+  iconName      String? @map("icon_name") @db.VarChar(60)
+  colorHex      String? @map("color_hex") @db.Char(7)   // "#FF3B30"
+  animationFile String? @map("animation_file") @db.VarChar(120) // Lottie JSON 파일명
+  displayOrder  Int     @default(0) @map("display_order")
+  isActive      Boolean @default(true) @map("is_active")
+
+  steps         GoldenTimeStep[]
+
+  @@unique([title])
+  @@map("golden_time_categories")
+}
+
+// =============================================================
+// 8. GoldenTimeStep (골든타임 탭 - 단계별 지침)
+//    summaryText: 28pt 이상 3줄 요약 / 무한 루핑 애니메이션과 병행 표시
+// =============================================================
+
+model GoldenTimeStep {
+  id           String  @id @default(uuid())
+  categoryId   String  @map("category_id")
+  stepNumber   Int     @map("step_number")
+  summaryText  String  @map("summary_text") @db.Text // 3줄 요약 (28pt↑ 렌더링)
+  detailText   String? @map("detail_text") @db.Text
+  displayOrder Int     @default(0) @map("display_order")
+
+  category     GoldenTimeCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, stepNumber])
+  @@index([categoryId, displayOrder])
+  @@map("golden_time_steps")
+}
+
+// =============================================================
+// 9. HospitalReport (크라우드 소싱 - Phase 02)
+//    유저가 현장 상황 직접 제보 (대기시간, 소아과 마감 등)
+// =============================================================
+
+model HospitalReport {
+  id          String     @id @default(uuid())
+  hospitalId  String     @map("hospital_id")
+  userId      String?    @map("user_id") // null = 익명 제보 허용
+  reportType  ReportType @map("report_type")
+  waitMinutes Int?       @map("wait_minutes") // WAIT_TIME 타입일 때
+  message     String?    @db.VarChar(200)
+  isVerified  Boolean    @default(false) @map("is_verified")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  hospital    Hospital   @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([hospitalId, createdAt(sort: Desc)])
+  @@index([hospitalId, reportType, createdAt(sort: Desc)])
+  @@map("hospital_reports")
+}
