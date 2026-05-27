@@ -1,0 +1,9 @@
+{
+  "name": "5min-root",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "npm start --prefix front",
+    "front": "npm start --prefix front",
+    "back": "npm start --prefix back"
+  }
+}

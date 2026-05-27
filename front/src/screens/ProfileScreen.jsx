@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert,
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -19,7 +19,7 @@ const MENU_ITEMS = [
   { icon: '🔔', title: '알림 설정',     sub: '응급실 혼잡 알림' },
 ];
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ onLogout }) {
   const { theme: t, isDark, toggle } = useTheme();
 
   return (
@@ -84,6 +84,17 @@ export default function ProfileScreen() {
       </View>
 
       <Text style={[s.version, { color: t.textSub }]}>응급실 안내 v1.0.0</Text>
+
+      <TouchableOpacity
+        style={[s.logoutBtn, { borderColor: t.border }]}
+        onPress={() => Alert.alert('로그아웃', '로그아웃 하시겠습니까?', [
+          { text: '취소', style: 'cancel' },
+          { text: '로그아웃', style: 'destructive', onPress: onLogout },
+        ])}
+        activeOpacity={0.7}
+      >
+        <Text style={s.logoutTxt}>로그아웃</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -109,5 +120,10 @@ const s = StyleSheet.create({
   menuTitle:     { fontSize: 14, fontWeight: '500', marginBottom: 1 },
   menuSub:       { fontSize: 12 },
   chevron:       { fontSize: 20 },
-  version:       { textAlign: 'center', fontSize: 12 },
+  version:       { textAlign: 'center', fontSize: 12, marginTop: 4 },
+  logoutBtn:     {
+    marginTop: 12, borderWidth: 1, borderRadius: 12,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  logoutTxt:     { fontSize: 15, fontWeight: '600', color: '#E24B4A' },
 });

@@ -1,8 +1,24 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+
+// 🛠️ 웹 브라우저 컴파일러가 모바일 네이티브 모듈을 강제로 읽어 터지는 현상을 원천 차단
+let MapView = View;
+let Marker = View;
+let PROVIDER_DEFAULT = null;
+
+if (Platform.OS !== 'web') {
+  try {
+    const RNMaps = require('react-native-maps');
+    MapView = RNMaps.default;
+    Marker = RNMaps.Marker;
+    PROVIDER_DEFAULT = RNMaps.PROVIDER_DEFAULT;
+  } catch (e) {
+    console.warn("react-native-maps 로드 실패:", e);
+  }
+}
+
 import { useTheme } from '../theme/ThemeContext';
 import HospitalCard from '../components/HospitalCard';
 import { HOSPITALS, LEVEL_COLOR, LEVEL_LABEL } from '../constants/hospitals';
@@ -23,49 +39,82 @@ export default function MapScreen() {
 
   const focusHospital = h => {
     setSelected(h);
-    mapRef.current?.animateToRegion({
-      latitude:  h.lat,
-      longitude: h.lng,
-      latitudeDelta:  0.04,
-      longitudeDelta: 0.03,
-    }, 400);
+    // 🛠️ 웹 브라우저에는 animateToRegion 기능이 없으므로 앱 환경일 때만 예외 처리 실행
+    if (Platform.OS !== 'web' && mapRef.current?.animateToRegion) {
+      mapRef.current.animateToRegion({
+        latitude:  h.lat,
+        longitude: h.lng,
+        latitudeDelta:  0.04,
+        longitudeDelta: 0.03,
+      }, 400);
+    }
+  };
+
+  // 🛠️ 노트북 웹 브라우저(w) 환경 전용 임베드 구글 지도 렌더링 스크립트 고도화
+  const renderWebMap = () => {
+    const GOOGLE_API_KEY = "43de3a65ed6abac768382a5a57a4ac37";
+    const targetLat = selected ? selected.lat : MY_LOCATION.latitude;
+    const targetLng = selected ? selected.lng : MY_LOCATION.longitude;
+    
+    // 주입해주신 API 키를 기반으로 정상적인 웹 임베드 구글 지도 맵핑 주소 생성
+    const mapUrl = `https://www.google.com/maps/embed/v1/view?key=${GOOGLE_API_KEY}&center=${targetLat},${targetLng}&zoom=14`;
+
+    return (
+      <View style={s.webMapContainer}>
+        <iframe
+          src={mapUrl}
+          width="100%"
+          height="260"
+          style={{ border: 0, borderRadius: '0px' }}
+          allowFullScreen
+          loading="lazy"
+        />
+        <View style={s.webMapOverlay}>
+          <Text style={s.webMapOverlayTxt}>💻 노트북 브라우저 모드 (구글 맵 임베드 연동 완료)</Text>
+        </View>
+      </View>
+    );
   };
 
   return (
     <View style={[s.container, { backgroundColor: t.bg }]}>
-      {/* 카카오맵 — WebView 방식 또는 react-native-maps 사용 */}
-      <MapView
-        ref={mapRef}
-        style={s.map}
-        provider={PROVIDER_DEFAULT}   // iOS: Apple Maps 기본 / 필요시 PROVIDER_GOOGLE
-        initialRegion={INITIAL_REGION}
-        userInterfaceStyle={t.mode}   // 'light' | 'dark' — iOS 다크모드 자동 반영
-        showsUserLocation={false}     // 커스텀 마커로 대체
-      >
-        {/* 내 위치 마커 (서울아산병원) */}
-        <Marker coordinate={MY_LOCATION} anchor={{ x: 0.5, y: 0.5 }}>
-          <View style={s.myDot} />
-        </Marker>
-
-        {/* 병원 마커 */}
-        {HOSPITALS.map(h => (
-          <Marker
-            key={h.id}
-            coordinate={{ latitude: h.lat, longitude: h.lng }}
-            onPress={() => focusHospital(h)}
-          >
-            <View style={[
-              s.pin,
-              { backgroundColor: LEVEL_COLOR[h.level] },
-              selected?.id === h.id && s.pinSelected,
-            ]}>
-              <Text style={s.pinTxt}>{h.name}</Text>
-            </View>
+      {/* ── 지도 영역 (웹 / 모바일 아키텍처 다형성 분기 렌더링) ── */}
+      {Platform.OS === 'web' ? (
+        renderWebMap()
+      ) : (
+        <MapView
+          ref={mapRef}
+          style={s.map}
+          provider={PROVIDER_DEFAULT}
+          initialRegion={INITIAL_REGION}
+          userInterfaceStyle={t.mode}
+          showsUserLocation={false}
+        >
+          {/* 내 위치 마커 (서울아산병원) */}
+          <Marker coordinate={MY_LOCATION} anchor={{ x: 0.5, y: 0.5 }}>
+            <View style={s.myDot} />
           </Marker>
-        ))}
-      </MapView>
 
-      {/* 범례 */}
+          {/* 주변 병원 핀 마커 루프 */}
+          {HOSPITALS.map(h => (
+            <Marker
+              key={h.id}
+              coordinate={{ latitude: h.lat, longitude: h.lng }}
+              onPress={() => focusHospital(h)}
+            >
+              <View style={[
+                s.pin,
+                { backgroundColor: LEVEL_COLOR[h.level] },
+                selected?.id === h.id && s.pinSelected,
+              ]}>
+                <Text style={s.pinTxt}>{h.name}</Text>
+              </View>
+            </Marker>
+          ))}
+        </MapView>
+      )}
+
+      {/* 응급도 기준 범례 레이어 */}
       <View style={[s.legend, { backgroundColor: t.bgCard }]}>
         {Object.entries(LEVEL_COLOR).map(([k, c]) => (
           <View key={k} style={s.legendItem}>
@@ -75,7 +124,7 @@ export default function MapScreen() {
         ))}
       </View>
 
-      {/* 하단 정보 */}
+      {/* 하단 응급실 정보 상세 리스트 시트 */}
       <ScrollView
         style={[s.sheet, { backgroundColor: t.bg }]}
         contentContainerStyle={{ padding: 12 }}
@@ -105,6 +154,12 @@ export default function MapScreen() {
 const s = StyleSheet.create({
   container:   { flex: 1 },
   map:         { height: 260 },
+  webMapContainer: { height: 260, position: 'relative' },
+  webMapOverlay: {
+    position: 'absolute', bottom: 6, left: 6,
+    backgroundColor: 'rgba(0,0,0,0.65)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4,
+  },
+  webMapOverlayTxt: { color: '#fff', fontSize: 10, fontWeight: '600' },
   myDot:       {
     width: 16, height: 16, borderRadius: 8,
     backgroundColor: '#185FA5', borderWidth: 3, borderColor: '#fff',
@@ -121,6 +176,7 @@ const s = StyleSheet.create({
     borderRadius: 8, padding: 6,
     flexDirection: 'row', gap: 8,
     shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4,
+    zIndex: 10,
   },
   legendItem:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
   dot:         { width: 8, height: 8, borderRadius: 4 },
