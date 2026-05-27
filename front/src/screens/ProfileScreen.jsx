@@ -1,0 +1,113 @@
+import React from 'react';
+import {
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch,
+} from 'react-native';
+import { useTheme } from '../theme/ThemeContext';
+
+const EMERGENCY_INFO = [
+  { label: '혈액형',  value: 'A+' },
+  { label: '지병',    value: '고혈압, 당뇨' },
+  { label: '알레르기', value: '페니실린' },
+  { label: '보호자',  value: '010-1234-5678' },
+];
+
+const MENU_ITEMS = [
+  { icon: '🚗', title: '내 차량 정보',  sub: '차량번호 · 보험사' },
+  { icon: '💊', title: '복용 중인 약',  sub: '3가지 약물 등록됨' },
+  { icon: '📞', title: '긴급 연락처',   sub: '보호자 2명' },
+  { icon: '🪪', title: '메디컬 ID',     sub: '바코드 생성 완료' },
+  { icon: '🔔', title: '알림 설정',     sub: '응급실 혼잡 알림' },
+];
+
+export default function ProfileScreen() {
+  const { theme: t, isDark, toggle } = useTheme();
+
+  return (
+    <ScrollView
+      style={[s.scroll, { backgroundColor: t.bg }]}
+      contentContainerStyle={s.content}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* 응급 정보 카드 */}
+      <View style={s.emergencyCard}>
+        <Text style={s.emergencyLabel}>🚨 응급 정보 카드</Text>
+        <View style={s.grid}>
+          {EMERGENCY_INFO.map(item => (
+            <View key={item.label} style={s.gridCell}>
+              <Text style={s.cellLabel}>{item.label}</Text>
+              <Text style={s.cellValue}>{item.value}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* 메뉴 목록 */}
+      <View style={[s.menuSection, { backgroundColor: t.bgCard, borderColor: t.border }]}>
+        {MENU_ITEMS.map((item, idx) => (
+          <TouchableOpacity
+            key={item.title}
+            style={[
+              s.menuRow,
+              { borderBottomColor: t.border },
+              idx === MENU_ITEMS.length - 1 && { borderBottomWidth: 0 },
+            ]}
+            activeOpacity={0.7}
+          >
+            <Text style={s.menuIcon}>{item.icon}</Text>
+            <View style={s.menuText}>
+              <Text style={[s.menuTitle, { color: t.text }]}>{item.title}</Text>
+              <Text style={[s.menuSub, { color: t.textSub }]}>{item.sub}</Text>
+            </View>
+            <Text style={[s.chevron, { color: t.textSub }]}>›</Text>
+          </TouchableOpacity>
+        ))}
+
+        {/* 다크모드 토글 */}
+        <View style={[s.menuRow, { borderBottomWidth: 0 }]}>
+          <Text style={s.menuIcon}>{isDark ? '🌙' : '☀️'}</Text>
+          <View style={s.menuText}>
+            <Text style={[s.menuTitle, { color: t.text }]}>
+              {isDark ? '다크 모드' : '라이트 모드'}
+            </Text>
+            <Text style={[s.menuSub, { color: t.textSub }]}>
+              {isDark ? '어두운 화면 사용 중' : '밝은 화면 사용 중'}
+            </Text>
+          </View>
+          <Switch
+            value={isDark}
+            onValueChange={toggle}
+            trackColor={{ false: '#D1D1D6', true: '#4A90D9' }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor="#D1D1D6"
+          />
+        </View>
+      </View>
+
+      <Text style={[s.version, { color: t.textSub }]}>응급실 안내 v1.0.0</Text>
+    </ScrollView>
+  );
+}
+
+const s = StyleSheet.create({
+  scroll:        { flex: 1 },
+  content:       { padding: 12, gap: 12, paddingBottom: 32 },
+  emergencyCard: {
+    backgroundColor: '#E24B4A', borderRadius: 14, padding: 16,
+  },
+  emergencyLabel:{ color: '#fff', fontSize: 13, fontWeight: '700', marginBottom: 12 },
+  grid:          { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  gridCell:      { width: '45%' },
+  cellLabel:     { color: 'rgba(255,255,255,0.75)', fontSize: 11, marginBottom: 2 },
+  cellValue:     { color: '#fff', fontSize: 15, fontWeight: '600' },
+  menuSection:   { borderRadius: 14, borderWidth: 0.5, overflow: 'hidden' },
+  menuRow:       {
+    flexDirection: 'row', alignItems: 'center',
+    padding: 14, borderBottomWidth: 0.5, gap: 12,
+  },
+  menuIcon:      { fontSize: 20 },
+  menuText:      { flex: 1 },
+  menuTitle:     { fontSize: 14, fontWeight: '500', marginBottom: 1 },
+  menuSub:       { fontSize: 12 },
+  chevron:       { fontSize: 20 },
+  version:       { textAlign: 'center', fontSize: 12 },
+});
