@@ -8,7 +8,11 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -79,19 +83,50 @@ public class EmergencyApiService {
         return getAreaData("getSrsillDissAceptncPosblInfoInqire", stage1, stage2);
     }
 
-    // [Tab01] 병원 ID(HPID) 기준으로 응급실 및 중증질환 제한 메시지를 조회합니다.
-    public String getEmergencyMessage(String hpid) {
-        URI uri = UriComponentsBuilder.fromUriString(BASE_URL + "getSrsillDissMsgInqire")
+    // 응급실 중증질환 제한 메시지를 조회합니다. stage 없으면 전체, 있으면 dutyAddr 기준 지역 필터링합니다.
+    // (이 API는 STAGE1/STAGE2 파라미터를 지원하지 않으므로 전체 조회 후 클라이언트 필터링)
+    public String getEmergencyMessage(String stage1, String stage2) {
+        URI uri = UriComponentsBuilder.fromUriString(BASE_URL + "getEmrrmSrsillDissMsgInqire")
                 .queryParam("serviceKey", apiKey)
                 .queryParam("pageNo", 1)
-                .queryParam("numOfRows", 100)
-                .queryParam("HPID", hpid)
+                .queryParam("numOfRows", 1000)
                 .queryParam("_type", "json")
                 .encode()
                 .build()
                 .toUri();
 
-        return callEmergencyApi(uri);
+        String allData = callEmergencyApi(uri);
+
+        String normalizedStage1 = normalizeStage1(stage1);
+        if (normalizedStage1.isBlank()) {
+            return allData;
+        }
+
+        String trimmedStage2 = (stage2 != null) ? stage2.trim() : "";
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(allData);
+            JsonNode items = root.path("response").path("body").path("items").path("item");
+
+            List<JsonNode> filtered = new ArrayList<>();
+            for (JsonNode item : items) {
+                String addr = item.path("dutyAddr").asText("");
+                if (addr.contains(normalizedStage1)) {
+                    if (trimmedStage2.isEmpty() || addr.contains(trimmedStage2)) {
+                        filtered.add(item);
+                    }
+                }
+            }
+
+            String filteredJson = mapper.writeValueAsString(filtered);
+            return "{\"response\":{\"header\":{\"resultCode\":\"00\",\"resultMsg\":\"NORMAL SERVICE.\"},"
+                    + "\"body\":{\"items\":{\"item\":" + filteredJson + "},"
+                    + "\"numOfRows\":1000,\"pageNo\":1,\"totalCount\":" + filtered.size() + "}}}";
+        } catch (Exception e) {
+            log.error("Failed to filter message data by stage. stage1={}, stage2={}", stage1, stage2, e);
+            return allData;
+        }
     }
 
     // [Tab03] 병원 지도 마커용 위치 정보를 조회합니다. stage2가 없으면 해당 시도 전체를 조회합니다.
@@ -99,9 +134,15 @@ public class EmergencyApiService {
         return getAreaData("getEgytBassInfoInqire", stage1, stage2);
     }
 
-    // 시도/시군구 기반 API를 호출합니다. 시군구가 없으면 등록된 시군구 목록을 순회해 결과를 합칩니다.
+    // 시도/시군구 기반 API를 호출합니다. 시도가 없으면 전체 조회, 시군구가 없으면 해당 시도 전체를 조회합니다.
     private String getAreaData(String endpoint, String stage1, String stage2) {
         String normalizedStage1 = normalizeStage1(stage1);
+
+        // stage1 없으면 STAGE1 파라미터 없이 호출 → 전체 조회
+        if (normalizedStage1.isBlank()) {
+            URI uri = buildAreaUri(endpoint, "", "");
+            return callEmergencyApi(uri);
+        }
 
         if (stage2 != null && !stage2.isBlank()) {
             URI uri = buildAreaUri(endpoint, normalizedStage1, stage2.trim());
@@ -137,14 +178,17 @@ public class EmergencyApiService {
         return STAGE1_ALIASES.getOrDefault(trimmed, trimmed);
     }
 
-    // 시도(STAGE1), 시군구(STAGE2)를 사용하는 응급의료 API URL을 생성합니다.
+    // 시도(STAGE1), 시군구(STAGE2)를 사용하는 응급의료 API URL을 생성합니다. 값이 없으면 해당 파라미터를 생략합니다.
     private URI buildAreaUri(String endpoint, String stage1, String stage2) {
         UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(BASE_URL + endpoint)
                 .queryParam("serviceKey", apiKey)
                 .queryParam("pageNo", 1)
                 .queryParam("numOfRows", 100)
-                .queryParam("STAGE1", stage1)
                 .queryParam("_type", "json");
+
+        if (stage1 != null && !stage1.isBlank()) {
+            builder.queryParam("STAGE1", stage1);
+        }
 
         if (stage2 != null && !stage2.isBlank()) {
             builder.queryParam("STAGE2", stage2);
