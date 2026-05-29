@@ -1,0 +1,5 @@
+task printClasspath {
+    doLast {
+        configurations.runtimeClasspath.each { println it }
+    }
+}

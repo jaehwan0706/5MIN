@@ -26,8 +26,8 @@ public class EmergencyController {
     // 호출 예시: GET /api/emergency/beds?stage1=서울&stage2=강남구
     @GetMapping(value = "/beds", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getBeds(
-            @RequestParam(required = false, defaultValue = "") String stage1,
-            @RequestParam(required = false, defaultValue = "") String stage2) {
+            @RequestParam(value = "stage1", required = false, defaultValue = "") String stage1,
+            @RequestParam(value = "stage2", required = false, defaultValue = "") String stage2) {
         return jsonResponse(emergencyApiService.getBeds(stage1, stage2));
     }
 
@@ -36,7 +36,7 @@ public class EmergencyController {
     // 호출 예시: GET /api/emergency/pediatric  (전체 조회)
     @GetMapping(value = "/pediatric", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getPediatricBeds(
-            @RequestParam(required = false, defaultValue = "") String stage1) {
+            @RequestParam(value = "stage1", required = false, defaultValue = "") String stage1) {
         return jsonResponse(emergencyApiService.getPediatricBeds(stage1));
     }
 
@@ -45,8 +45,8 @@ public class EmergencyController {
     // 호출 예시: GET /api/emergency/severe?stage1=서울&stage2=강남구
     @GetMapping(value = "/severe", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getSeverePatientInfo(
-            @RequestParam(required = false, defaultValue = "") String stage1,
-            @RequestParam(required = false, defaultValue = "") String stage2) {
+            @RequestParam(value = "stage1", required = false, defaultValue = "") String stage1,
+            @RequestParam(value = "stage2", required = false, defaultValue = "") String stage2) {
         return jsonResponse(emergencyApiService.getSeverePatientInfo(stage1, stage2));
     }
 
@@ -55,8 +55,8 @@ public class EmergencyController {
     // 호출예시: /api/emergency/message?stage1=서울&stage2=강남구 (지역별)
     @GetMapping("/message")
     public String getEmergencyMessage(
-        @RequestParam(required = false, defaultValue = "") String stage1,
-        @RequestParam(required = false, defaultValue = "") String stage2) {
+        @RequestParam(value = "stage1", required = false, defaultValue = "") String stage1,
+        @RequestParam(value = "stage2", required = false, defaultValue = "") String stage2) {
     return emergencyApiService.getEmergencyMessage(stage1, stage2);
     }
 
@@ -65,8 +65,8 @@ public class EmergencyController {
     // 호출 예시: GET /api/emergency/location?stage1=서울&stage2=강남구
     @GetMapping(value = "/location", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> getHospitalLocation(
-            @RequestParam(required = false, defaultValue = "") String stage1,
-            @RequestParam(required = false, defaultValue = "") String stage2) {
+            @RequestParam(value = "stage1", required = false, defaultValue = "") String stage1,
+            @RequestParam(value = "stage2", required = false, defaultValue = "") String stage2) {
         return jsonResponse(emergencyApiService.getHospitalLocation(stage1, stage2));
     }
 
