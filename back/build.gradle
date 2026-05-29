@@ -26,6 +26,8 @@ dependencies {
 	// JPA + MySQL
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	runtimeOnly 'com.mysql:mysql-connector-j'
+	// JSON 파싱
+	implementation 'org.json:json:20240303'
 }
 
 tasks.withType(JavaCompile) {
