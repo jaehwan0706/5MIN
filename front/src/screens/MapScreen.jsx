@@ -1,26 +1,35 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import * as Location from 'expo-location';
 
 import { useTheme } from '../theme/ThemeContext';
 import HospitalCard from '../components/HospitalCard';
 import { HOSPITALS, LEVEL_COLOR, LEVEL_LABEL } from '../constants/hospitals';
 
-// 현재 위치: 서울아산병원
-const MY_LOCATION = { latitude: 37.527, longitude: 127.1082 };
+// GPS 취득 전 기본값 (서울 중심)
+const DEFAULT_LOCATION = { latitude: 37.5665, longitude: 126.9780 };
 
-const INITIAL_REGION = {
-  ...MY_LOCATION,
-  latitudeDelta:  0.08,
-  longitudeDelta: 0.06,
-};
-
-export default function MapScreen() {
+export default function MapScreen({ userId }) {
   const { theme: t } = useTheme();
   const [selected, setSelected] = useState(HOSPITALS[0]);
+  const [myLocation, setMyLocation] = useState(DEFAULT_LOCATION);
   const mapRef = useRef(null);
+
+  // GPS 현재 위치 수신
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      setMyLocation(coords);
+      // 지도 중심을 내 위치로 이동
+      mapRef.current?.animateToRegion({ ...coords, latitudeDelta: 0.08, longitudeDelta: 0.06 }, 600);
+    })();
+  }, []);
 
   const focusHospital = h => {
     setSelected(h);
@@ -40,12 +49,12 @@ export default function MapScreen() {
         ref={mapRef}
         style={s.map}
         provider={PROVIDER_DEFAULT}
-        initialRegion={INITIAL_REGION}
+        initialRegion={{ ...DEFAULT_LOCATION, latitudeDelta: 0.08, longitudeDelta: 0.06 }}
         userInterfaceStyle={t.mode}
         showsUserLocation={false}
       >
-        {/* 내 위치 마커 (서울아산병원) */}
-        <Marker coordinate={MY_LOCATION} anchor={{ x: 0.5, y: 0.5 }}>
+        {/* 내 위치 마커 (GPS) */}
+        <Marker coordinate={myLocation} anchor={{ x: 0.5, y: 0.5 }}>
           <View style={s.myDot} />
         </Marker>
 

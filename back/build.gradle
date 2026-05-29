@@ -28,6 +28,10 @@ dependencies {
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	// JSON 파싱
 	implementation 'org.json:json:20240303'
+	// 입력값 검증
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	// 비밀번호 BCrypt 해싱 (Spring Security 없이 crypto만)
+	implementation 'org.springframework.security:spring-security-crypto'
 }
 
 tasks.withType(JavaCompile) {

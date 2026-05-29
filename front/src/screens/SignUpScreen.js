@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert,
+  StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Location from 'expo-location';
+import { signup } from '../api/userApi';
 
 export default function SignUpScreen({ onBack, onComplete }) {
   const [form, setForm] = useState({
@@ -11,6 +13,7 @@ export default function SignUpScreen({ onBack, onComplete }) {
   });
   const [agreed, setAgreed] = useState(false);
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
@@ -26,11 +29,38 @@ export default function SignUpScreen({ onBack, onComplete }) {
     return Object.keys(e).length === 0;
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!validate()) return;
-    Alert.alert('회원가입 완료', `${form.name}님, 환영합니다!`, [
-      { text: '로그인하러 가기', onPress: onComplete },
-    ]);
+    setLoading(true);
+    try {
+      // GPS 권한 요청
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      let latitude = null;
+      let longitude = null;
+      if (status === 'granted') {
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        latitude = pos.coords.latitude;
+        longitude = pos.coords.longitude;
+      }
+
+      // 회원가입 API 호출
+      const user = await signup({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        phone: form.phone.replace(/-/g, ''),
+        latitude,
+        longitude,
+      });
+
+      Alert.alert('회원가입 완료', `${form.name}님, 환영합니다!`, [
+        { text: '로그인하러 가기', onPress: () => onComplete(user) },
+      ]);
+    } catch (err) {
+      Alert.alert('회원가입 실패', err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -96,8 +126,10 @@ export default function SignUpScreen({ onBack, onComplete }) {
           </TouchableOpacity>
           {errors.agree && <Text style={s.errorTxt}>{errors.agree}</Text>}
 
-          <TouchableOpacity style={s.submitBtn} onPress={submit} activeOpacity={0.85}>
-            <Text style={s.submitTxt}>가입하기</Text>
+          <TouchableOpacity style={s.submitBtn} onPress={submit} activeOpacity={0.85} disabled={loading}>
+            {loading
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={s.submitTxt}>가입하기</Text>}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
