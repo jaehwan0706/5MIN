@@ -1,47 +1,17 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { SYMPTOMS } from '../constants/hospitals';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-const ANTHROPIC_KEY = 'YOUR_ANTHROPIC_API_KEY'; // 실제 키로 교체
-
 export default function GoldenScreen() {
   const { theme: t } = useTheme();
-  const [selected, setSelected] = useState(null);
-  const [loading, setLoading]   = useState(false);
-  const [guide, setGuide]       = useState('');
+  const [selectedSym, setSelectedSym] = useState(null);
 
-  const askClaude = async symptom => {
-    setSelected(symptom.id);
-    setLoading(true);
-    setGuide('');
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': ANTHROPIC_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{
-            role: 'user',
-            content: `응급상황: ${symptom.label}. 구급대원 도착 전까지 현장에서 할 수 있는 응급처치 가이드를 단계별로 간결하게 한국어로 알려주세요. 3~5단계, 각 단계는 1~2문장으로 짧게.`,
-          }],
-        }),
-      });
-      const data = await res.json();
-      const text = data.content?.map(i => i.text || '').join('\n') || '응답을 받지 못했습니다.';
-      setGuide(text);
-    } catch {
-      setGuide('네트워크 오류가 발생했습니다.');
-    }
-    setLoading(false);
+  const handleSelect = symptom => {
+    setSelectedSym(symptom.id === selectedSym?.id ? null : symptom);
   };
 
   return (
@@ -52,13 +22,13 @@ export default function GoldenScreen() {
     >
       {/* 안내 배너 */}
       <View style={s.banner}>
-        <Text style={s.bannerTxt}>증상을 선택하면 Claude가 응급처치 가이드를 안내합니다.</Text>
+        <Text style={s.bannerTxt}>증상을 선택하면 즉시 실천 가능한 응급처치 가이드를 확인합니다.</Text>
       </View>
 
       {/* 증상 버튼 2열 */}
       <View style={s.grid}>
         {SYMPTOMS.map(sym => {
-          const active = selected === sym.id;
+          const active = selectedSym?.id === sym.id;
           return (
             <TouchableOpacity
               key={sym.id}
@@ -69,7 +39,7 @@ export default function GoldenScreen() {
                   borderColor:     active ? '#E24B4A' : t.border,
                 },
               ]}
-              onPress={() => askClaude(sym)}
+              onPress={() => handleSelect(sym)}
               activeOpacity={0.75}
             >
               <MaterialCommunityIcons 
@@ -83,19 +53,22 @@ export default function GoldenScreen() {
         })}
       </View>
 
-      {/* Claude 가이드 */}
-      {(loading || guide) && (
+      {/* 응급처치 가이드 카드 */}
+      {selectedSym && (
         <View style={[s.guideCard, { backgroundColor: t.bgCard, borderColor: t.border }]}>
           <View style={s.guideHeader}>
             <View style={s.guideHeaderRow}>
-              <Ionicons name="sparkles" size={16} color="#791F1F" />
-              <Text style={s.guideHeaderTxt}>Claude 응급처치 가이드</Text>
+              <Ionicons name="medical" size={16} color="#791F1F" />
+              <Text style={s.guideHeaderTxt}>{selectedSym.label} 응급처치 가이드</Text>
             </View>
           </View>
-          {loading
-            ? <ActivityIndicator color="#E24B4A" style={{ marginVertical: 16 }} />
-            : <Text style={[s.guideTxt, { color: t.text }]}>{guide}</Text>
-          }
+          <View style={s.guideBody}>
+            <Text style={[s.guideTxt, { color: t.text }]}>{selectedSym.guide}</Text>
+          </View>
+          <View style={s.warnFooter}>
+            <Ionicons name="alert-circle" size={14} color="#791F1F" />
+            <Text style={s.warnFooterTxt}>이 가이드는 참고용이며, 반드시 119 신고가 우선입니다.</Text>
+          </View>
         </View>
       )}
 
@@ -132,7 +105,7 @@ const s = StyleSheet.create({
   bannerTxt:    { fontSize: 12, color: '#791F1F' },
   grid:         { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   symBtn:       {
-    width: '48%', borderRadius: 10, borderWidth: 1,
+    width: '48.5%', borderRadius: 10, borderWidth: 1,
     padding: 14, alignItems: 'center', gap: 8,
   },
   symLabel:     { fontSize: 12, fontWeight: '600', textAlign: 'center' },
@@ -140,7 +113,10 @@ const s = StyleSheet.create({
   guideHeader:  { backgroundColor: '#FCEBEB', padding: 10 },
   guideHeaderRow:{ flexDirection: 'row', alignItems: 'center', gap: 6 },
   guideHeaderTxt:{ fontSize: 12, fontWeight: '700', color: '#791F1F' },
-  guideTxt:     { fontSize: 13, lineHeight: 21, padding: 12 },
+  guideBody:    { padding: 14 },
+  guideTxt:     { fontSize: 14, lineHeight: 22 },
+  warnFooter:   { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 10, borderTopWidth: 0.5, borderTopColor: '#eee', backgroundColor: '#fffafb' },
+  warnFooterTxt:{ fontSize: 11, color: '#791F1F', fontWeight: '500' },
   barcodeCard:  { borderRadius: 12, borderWidth: 0.5, padding: 14 },
   barcodeHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
   barcodeTitle: { fontSize: 13, fontWeight: '600' },

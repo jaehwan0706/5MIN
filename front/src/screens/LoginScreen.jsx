@@ -1,14 +1,23 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Dimensions, StatusBar,
+  Dimensions, StatusBar, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Ellipse, Rect, G, Defs, RadialGradient, Stop, LinearGradient } from 'react-native-svg';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
+
+import { socialLogin } from '../api/userApi';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const { width } = Dimensions.get('window');
 
-/* ── 5분 로고 SVG (앰뷸런스 + 시계 조합) ── */
+const KAKAO_REST_API_KEY = '6f1d69aede1067d118624fc26d3deee1';
+
+/* ── 5분 로고 SVG ── */
 function FiveMinLogo({ size = 160 }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 160 160">
@@ -22,16 +31,10 @@ function FiveMinLogo({ size = 160 }) {
           <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
         </LinearGradient>
       </Defs>
-
-      {/* 배경 원 */}
       <Circle cx="80" cy="80" r="76" fill="url(#bgGrad)" />
       <Circle cx="80" cy="80" r="76" fill="url(#gloss)" />
       <Circle cx="80" cy="80" r="76" fill="none" stroke="#fff" strokeWidth="2" strokeOpacity="0.3" />
-
-      {/* 시계 외곽 */}
       <Circle cx="80" cy="80" r="50" fill="none" stroke="#fff" strokeWidth="5" strokeOpacity="0.9" />
-
-      {/* 시계 눈금 (12, 3, 6, 9) */}
       {[0,90,180,270].map((deg, i) => {
         const rad = (deg - 90) * Math.PI / 180;
         const x1 = 80 + 44 * Math.cos(rad);
@@ -40,15 +43,9 @@ function FiveMinLogo({ size = 160 }) {
         const y2 = 80 + 50 * Math.sin(rad);
         return <Path key={i} d={`M${x1} ${y1} L${x2} ${y2}`} stroke="#fff" strokeWidth="3" strokeLinecap="round" />;
       })}
-
-      {/* 시침 — 12시 방향 */}
       <Path d="M80 80 L80 44" stroke="#fff" strokeWidth="4" strokeLinecap="round" />
-      {/* 분침 — 5분 위치 (30도) */}
       <Path d="M80 80 L95 52" stroke="#FFD700" strokeWidth="3.5" strokeLinecap="round" />
-      {/* 중심 점 */}
       <Circle cx="80" cy="80" r="5" fill="#FFD700" />
-
-      {/* 십자 마크 (우측 하단) */}
       <Circle cx="116" cy="116" r="18" fill="#fff" />
       <Rect x="107" y="113" width="18" height="6" rx="3" fill="#E24B4A" />
       <Rect x="113" y="107" width="6" height="18" rx="3" fill="#E24B4A" />
@@ -56,47 +53,154 @@ function FiveMinLogo({ size = 160 }) {
   );
 }
 
-export default function LoginScreen({ onLogin, onSignUp, onFindAccount }) {
+export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginSuccess }) {
+  
+  // 고정된 Redirect URI 생성
+  const redirectUri = useMemo(() => AuthSession.makeRedirectUri({ useProxy: true }), []);
+  useEffect(() => {
+    console.log('[5MIN] Generated Redirect URI:', redirectUri);
+  }, [redirectUri]);
+
+  // --- 구글 로그인 설정 ---
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
+    iosClientId: '612745898680-79ji2g4q9vv68888dvquaqm9du6vk362.apps.googleusercontent.com',
+    androidClientId: '612745898680-79ji2g4q9vv68888dvquaqm9du6vk362.apps.googleusercontent.com',
+    webClientId: '612745898680-79ji2g4q9vv68888dvquaqm9du6vk362.apps.googleusercontent.com',
+    redirectUri: redirectUri,
+  });
+
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const { authentication } = googleResponse;
+      handleGoogleLogin(authentication.accessToken);
+    }
+  }, [googleResponse]);
+
+  const handleGoogleLogin = async (token) => {
+    try {
+      const userInfoResponse = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const userInfo = await userInfoResponse.json();
+      console.log('[5MIN] Google User Info:', userInfo);
+      
+      const user = await socialLogin('GOOGLE', userInfo.id, userInfo.email, userInfo.name);
+      onLoginSuccess(user);
+    } catch (error) {
+      console.error('[5MIN] Google Login Error:', error);
+      Alert.alert('로그인 오류', '구글 로그인에 실패했습니다. (서버 상태 확인 필요)');
+    }
+  };
+
+  // --- 카카오 로그인 설정 ---
+  const [kakaoRequest, kakaoResponse, kakaoPromptAsync] = AuthSession.useAuthRequest(
+    {
+      clientId: KAKAO_REST_API_KEY,
+      redirectUri: redirectUri,
+      scopes: ['account_email', 'profile_nickname'],
+      responseType: AuthSession.ResponseType.Code,
+    },
+    {
+      authorizationEndpoint: 'https://kauth.kakao.com/oauth/authorize',
+      tokenEndpoint: 'https://kauth.kakao.com/oauth/token',
+    }
+  );
+
+  useEffect(() => {
+    if (kakaoResponse?.type === 'success') {
+      const { code } = kakaoResponse.params;
+      getKakaoToken(code);
+    }
+  }, [kakaoResponse]);
+
+  const getKakaoToken = async (code) => {
+    try {
+      // 쿼리 스트링 대신 Body에 담아 보내는 방식으로 변경 (더 안정적)
+      const params = new URLSearchParams();
+      params.append('grant_type', 'authorization_code');
+      params.append('client_id', KAKAO_REST_API_KEY);
+      params.append('redirect_uri', redirectUri);
+      params.append('code', code);
+
+      const tokenResponse = await fetch('https://kauth.kakao.com/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-type': 'application/x-www-form-urlencoded;charset=utf-8' },
+        body: params.toString(),
+      });
+      
+      const tokenData = await tokenResponse.json();
+      console.log('[5MIN] Kakao Token Response:', tokenData);
+
+      if (tokenData.access_token) {
+        getKakaoUserInfo(tokenData.access_token);
+      } else {
+        console.error('[5MIN] Kakao Token Error Detail:', JSON.stringify(tokenData, null, 2));
+        Alert.alert('로그인 오류', `카카오 에러: ${tokenData.error_description || tokenData.error || 'Unknown Error'} (${tokenData.error_code || 'No Code'})`);
+      }
+    } catch (error) {
+      console.error('[5MIN] Kakao Network Error:', error);
+      Alert.alert('네트워크 오류', '카카오 토큰 발급 중 오류가 발생했습니다.');
+    }
+  };
+
+  const getKakaoUserInfo = async (token) => {
+    try {
+      const userRes = await fetch('https://kapi.kakao.com/v2/user/me', {
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-type': 'application/x-www-form-urlencoded;charset=utf-8',
+        },
+      });
+      const userData = await userRes.json();
+      console.log('[5MIN] Kakao User Info:', userData);
+      
+      const user = await socialLogin(
+        'KAKAO', 
+        userData.id.toString(), 
+        userData.kakao_account?.email || `${userData.id}@kakao.com`, 
+        userData.properties?.nickname || '카카오 사용자'
+      );
+      onLoginSuccess(user);
+    } catch (error) {
+      console.error('[5MIN] Kakao Profile Error:', error);
+      Alert.alert('정보 오류', '사용자 정보를 가져오지 못했습니다.');
+    }
+  };
+
+  useEffect(() => {
+    console.log('[5MIN] Current Redirect URI:', redirectUri);
+  }, [redirectUri]);
+
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" />
       <View style={s.container}>
-
-        {/* 로고 영역 */}
         <View style={s.logoArea}>
           <FiveMinLogo size={140} />
           <Text style={s.appName}>5분</Text>
           <Text style={s.tagline}>골든타임, 5분 안에 응급실로</Text>
         </View>
-
-        {/* 소셜 로그인 */}
         <View style={s.btnArea}>
           <TouchableOpacity
             style={s.kakaoBtn}
-            onPress={() => onLogin('kakao')}
+            onPress={() => kakaoPromptAsync()}
             activeOpacity={0.85}
+            disabled={!kakaoRequest}
           >
-            {/* 카카오 로고 */}
             <Svg width={20} height={20} viewBox="0 0 20 20" style={{ marginRight: 8 }}>
               <Ellipse cx="10" cy="9" rx="9" ry="8.5" fill="#3C1E1E" />
-              <Path
-                d="M10 4C6.686 4 4 6.06 4 8.6c0 1.624 1.04 3.048 2.613 3.872l-.667 2.48 2.947-1.94A7.8 7.8 0 0010 13.2c3.314 0 6-2.06 6-4.6S13.314 4 10 4z"
-                fill="#3C1E1E"
-              />
-              <Path
-                d="M10 4.5C6.96 4.5 4.5 6.395 4.5 8.7c0 1.48.94 2.78 2.37 3.55l-.6 2.22 2.64-1.74c.35.06.71.09 1.09.09 3.04 0 5.5-1.895 5.5-4.2S13.04 4.5 10 4.5z"
-                fill="#FFE812"
-              />
+              <Path d="M10 4C6.686 4 4 6.06 4 8.6c0 1.624 1.04 3.048 2.613 3.872l-.667 2.48 2.947-1.94A7.8 7.8 0 0010 13.2c3.314 0 6-2.06 6-4.6S13.314 4 10 4z" fill="#3C1E1E" />
+              <Path d="M10 4.5C6.96 4.5 4.5 6.395 4.5 8.7c0 1.48.94 2.78 2.37 3.55l-.6 2.22 2.64-1.74c.35.06.71.09 1.09.09 3.04 0 5.5-1.895 5.5-4.2S13.04 4.5 10 4.5z" fill="#FFE812" />
             </Svg>
             <Text style={s.kakaoTxt}>카카오로 로그인</Text>
           </TouchableOpacity>
-
           <TouchableOpacity
             style={s.googleBtn}
-            onPress={() => onLogin('google')}
+            onPress={() => googlePromptAsync()}
             activeOpacity={0.85}
+            disabled={!googleRequest}
           >
-            {/* 구글 로고 */}
             <Svg width={20} height={20} viewBox="0 0 20 20" style={{ marginRight: 8 }}>
               <Path d="M19.6 10.23c0-.68-.06-1.36-.18-2H10v3.79h5.4a4.62 4.62 0 01-2 3.03v2.5h3.24c1.9-1.75 3-4.33 3-7.32z" fill="#4285F4" />
               <Path d="M10 20c2.7 0 4.97-.9 6.63-2.44l-3.24-2.5c-.9.6-2.04.96-3.39.96-2.6 0-4.81-1.76-5.6-4.13H1.07v2.58A9.99 9.99 0 0010 20z" fill="#34A853" />
@@ -105,15 +209,11 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount }) {
             </Svg>
             <Text style={s.googleTxt}>구글로 로그인</Text>
           </TouchableOpacity>
-
-          {/* 구분선 */}
           <View style={s.divider}>
             <View style={s.divLine} />
             <Text style={s.divTxt}>또는</Text>
             <View style={s.divLine} />
           </View>
-
-          {/* 일반 로그인 */}
           <TouchableOpacity
             style={s.loginBtn}
             onPress={() => onLogin('email')}
@@ -121,8 +221,6 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount }) {
           >
             <Text style={s.loginTxt}>이메일로 로그인</Text>
           </TouchableOpacity>
-
-          {/* 하단 링크 */}
           <View style={s.links}>
             <TouchableOpacity onPress={onSignUp} activeOpacity={0.7}>
               <Text style={s.linkTxt}>회원가입</Text>
@@ -133,7 +231,6 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount }) {
             </TouchableOpacity>
           </View>
         </View>
-
       </View>
     </SafeAreaView>
   );

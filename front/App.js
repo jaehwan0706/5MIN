@@ -32,12 +32,15 @@ function Main() {
       try {
         const saved = await AsyncStorage.getItem(USER_KEY);
         if (saved) {
-          setUser(JSON.parse(saved));
+          const userData = JSON.parse(saved);
+          console.log('[5MIN] Loaded saved user:', userData);
+          setUser(userData);
           setAuth('app');
         } else {
           setAuth('login');
         }
-      } catch {
+      } catch (err) {
+        console.error('[5MIN] Load user error:', err);
         setAuth('login');
       }
     })();
@@ -52,15 +55,20 @@ function Main() {
         if (status !== 'granted') return;
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         await updateLocation(user.id, pos.coords.latitude, pos.coords.longitude);
-      } catch {
-        // 위치 갱신 실패해도 앱 사용에는 지장 없음
+      } catch (err) {
+        console.error('[5MIN] Update location error:', err);
       }
     })();
   }, [auth, user?.id]);
 
   const saveUser = async (userData) => {
-    await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
-    setUser(userData);
+    try {
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
+      setUser(userData);
+      setAuth('app');
+    } catch (err) {
+      console.error('[5MIN] Save user error:', err);
+    }
   };
 
   const handleLogout = async () => {
@@ -69,10 +77,9 @@ function Main() {
     setAuth('login');
   };
 
-  // 회원가입 완료 → 사용자 저장 → 앱 진입
-  const handleSignUpComplete = async (userData) => {
-    await saveUser(userData);
-    setAuth('app');
+  const handleLoginSuccess = (userData) => {
+    console.log('[5MIN] Login success, navigating to app:', userData);
+    saveUser(userData);
   };
 
   /* ── 로딩 ── */
@@ -88,10 +95,14 @@ function Main() {
   if (auth === 'login') {
     return (
       <LoginScreen
-        onLogin={async () => {
-          // 소셜/이메일 로그인은 추후 구현 — 현재는 저장된 사용자로 진입
-          setAuth('app');
+        onLogin={(type) => {
+          if (type === 'email') {
+            // 이메일 로그인 화면이 따로 있다면 그리로 이동, 
+            // 여기서는 간단히 이메일 로그인이 성공했다고 가정하거나 추가 화면 필요
+            // 일단은 LoginScreen 내부에서 처리하도록 설계됨
+          }
         }}
+        onLoginSuccess={handleLoginSuccess}
         onSignUp={() => setAuth('signup')}
         onFindAccount={() => setAuth('find')}
       />
@@ -101,7 +112,7 @@ function Main() {
     return (
       <SignUpScreen
         onBack={() => setAuth('login')}
-        onComplete={handleSignUpComplete}
+        onComplete={handleLoginSuccess}
       />
     );
   }

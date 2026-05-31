@@ -49,6 +49,24 @@ public class UserController {
         return ResponseEntity.status(401).body(error);
     }
 
+    // 소셜 로그인 (카카오/구글)
+    // POST /api/user/login/social
+    @PostMapping("/login/social")
+    public ResponseEntity<Map<String, Object>> socialLogin(@Valid @RequestBody SocialLoginRequest req) {
+        try {
+            System.out.println("[5MIN] Social Login Request: " + req.provider + " / " + req.email);
+            User user = userService.processSocialLogin(
+                    req.provider, req.providerId, req.email, req.name);
+            return ResponseEntity.ok(toUserResponse(user, "소셜 로그인 성공"));
+        } catch (Exception e) {
+            System.err.println("[5MIN] Social Login Error: " + e.getMessage());
+            e.printStackTrace();
+            Map<String, Object> error = new LinkedHashMap<>();
+            error.put("error", "서버 내부 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.status(500).body(error);
+        }
+    }
+
     // 사용자 프로필 조회
     // GET /api/user/{id}
     @GetMapping("/{id}")
@@ -112,6 +130,21 @@ public class UserController {
 
         @NotBlank(message = "비밀번호를 입력해주세요.")
         public String password;
+    }
+
+    public static class SocialLoginRequest {
+        @NotBlank(message = "제공자(KAKAO/GOOGLE)를 입력해주세요.")
+        public String provider;
+
+        @NotBlank(message = "소셜 고유 ID를 입력해주세요.")
+        public String providerId;
+
+        @NotBlank(message = "이메일을 입력해주세요.")
+        @Email(message = "유효한 이메일 형식이 아닙니다.")
+        public String email;
+
+        @NotBlank(message = "이름을 입력해주세요.")
+        public String name;
     }
 
     public static class LocationRequest {
