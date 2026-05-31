@@ -13,11 +13,21 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.fivemin.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyA7WfB-0w4rrx9Xc-XN7wMIQ4QYnBT0_Nw"
+      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "위치 기반 응급실 안내를 위해 현재 위치 정보가 필요합니다."
       }
     },
     "android": {
+      "package": "com.fivemin.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyA7WfB-0w4rrx9Xc-XN7wMIQ4QYnBT0_Nw"
+        }
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

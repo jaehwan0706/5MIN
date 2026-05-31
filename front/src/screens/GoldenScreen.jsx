@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { SYMPTOMS } from '../constants/hospitals';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const ANTHROPIC_KEY = 'YOUR_ANTHROPIC_API_KEY'; // 실제 키로 교체
 
@@ -71,7 +72,11 @@ export default function GoldenScreen() {
               onPress={() => askClaude(sym)}
               activeOpacity={0.75}
             >
-              <Text style={s.symIcon}>{sym.icon}</Text>
+              <MaterialCommunityIcons 
+                name={sym.icon} 
+                size={32} 
+                color={active ? '#E24B4A' : t.text} 
+              />
               <Text style={[s.symLabel, { color: t.text }]}>{sym.label}</Text>
             </TouchableOpacity>
           );
@@ -82,7 +87,10 @@ export default function GoldenScreen() {
       {(loading || guide) && (
         <View style={[s.guideCard, { backgroundColor: t.bgCard, borderColor: t.border }]}>
           <View style={s.guideHeader}>
-            <Text style={s.guideHeaderTxt}>🤖 Claude 응급처치 가이드</Text>
+            <View style={s.guideHeaderRow}>
+              <Ionicons name="sparkles" size={16} color="#791F1F" />
+              <Text style={s.guideHeaderTxt}>Claude 응급처치 가이드</Text>
+            </View>
           </View>
           {loading
             ? <ActivityIndicator color="#E24B4A" style={{ marginVertical: 16 }} />
@@ -93,7 +101,10 @@ export default function GoldenScreen() {
 
       {/* 메디컬 ID 바코드 */}
       <View style={[s.barcodeCard, { backgroundColor: t.bgSecondary, borderColor: t.border }]}>
-        <Text style={[s.barcodeTitle, { color: t.text }]}>🪪 메디컬 ID 바코드</Text>
+        <View style={s.barcodeHeader}>
+          <Ionicons name="id-card-outline" size={18} color={t.text} />
+          <Text style={[s.barcodeTitle, { color: t.text }]}>메디컬 ID 바코드</Text>
+        </View>
         <View style={s.barcodeStripes}>
           {Array.from({ length: 36 }, (_, i) => (
             <View
@@ -122,16 +133,17 @@ const s = StyleSheet.create({
   grid:         { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   symBtn:       {
     width: '48%', borderRadius: 10, borderWidth: 1,
-    padding: 14, alignItems: 'center', gap: 6,
+    padding: 14, alignItems: 'center', gap: 8,
   },
-  symIcon:      { fontSize: 28 },
   symLabel:     { fontSize: 12, fontWeight: '600', textAlign: 'center' },
   guideCard:    { borderRadius: 12, borderWidth: 0.5, overflow: 'hidden' },
   guideHeader:  { backgroundColor: '#FCEBEB', padding: 10 },
+  guideHeaderRow:{ flexDirection: 'row', alignItems: 'center', gap: 6 },
   guideHeaderTxt:{ fontSize: 12, fontWeight: '700', color: '#791F1F' },
   guideTxt:     { fontSize: 13, lineHeight: 21, padding: 12 },
   barcodeCard:  { borderRadius: 12, borderWidth: 0.5, padding: 14 },
-  barcodeTitle: { fontSize: 13, fontWeight: '600', marginBottom: 10 },
+  barcodeHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  barcodeTitle: { fontSize: 13, fontWeight: '600' },
   barcodeStripes:{ flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 8 },
   stripe:       { width: 5, borderRadius: 1 },
   barcodeDesc:  { fontSize: 11, textAlign: 'center' },

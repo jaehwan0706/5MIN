@@ -101,12 +101,12 @@ export const LEVEL_LABEL = {
 };
 
 export const SYMPTOMS = [
-  { id: 'chest',      icon: '🫀', label: '가슴통증' },
-  { id: 'stroke',     icon: '🧠', label: '뇌졸중 의심' },
-  { id: 'breath',     icon: '🫁', label: '호흡 곤란' },
-  { id: 'bleed',      icon: '🩸', label: '심한 출혈' },
-  { id: 'burn',       icon: '🔥', label: '화상' },
-  { id: 'bone',       icon: '🦴', label: '골절 의심' },
-  { id: 'allergy',    icon: '⚠️', label: '알레르기 쇼크' },
-  { id: 'unconscious',icon: '😵', label: '의식 저하' },
+  { id: 'chest',      icon: 'heart-pulse', label: '가슴통증' },
+  { id: 'stroke',     icon: 'brain', label: '뇌졸중 의심' },
+  { id: 'breath',     icon: 'lungs', label: '호흡 곤란' },
+  { id: 'bleed',      icon: 'water', label: '심한 출혈' },
+  { id: 'burn',       icon: 'fire', label: '화상' },
+  { id: 'bone',       icon: 'bone', label: '골절 의심' },
+  { id: 'allergy',    icon: 'alert-outline', label: '알레르기 쇼크' },
+  { id: 'unconscious',icon: 'head-question-outline', label: '의식 저하' },
 ];

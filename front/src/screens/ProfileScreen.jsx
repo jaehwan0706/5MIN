@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert,
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
 
 const EMERGENCY_INFO = [
   { label: '혈액형',  value: 'A+' },
@@ -12,11 +13,11 @@ const EMERGENCY_INFO = [
 ];
 
 const MENU_ITEMS = [
-  { icon: '🚗', title: '내 차량 정보',  sub: '차량번호 · 보험사' },
-  { icon: '💊', title: '복용 중인 약',  sub: '3가지 약물 등록됨' },
-  { icon: '📞', title: '긴급 연락처',   sub: '보호자 2명' },
-  { icon: '🪪', title: '메디컬 ID',     sub: '바코드 생성 완료' },
-  { icon: '🔔', title: '알림 설정',     sub: '응급실 혼잡 알림' },
+  { icon: 'car-outline', title: '내 차량 정보',  sub: '차량번호 · 보험사' },
+  { icon: 'medkit-outline', title: '복용 중인 약',  sub: '3가지 약물 등록됨' },
+  { icon: 'call-outline', title: '긴급 연락처',   sub: '보호자 2명' },
+  { icon: 'id-card-outline', title: '메디컬 ID',     sub: '바코드 생성 완료' },
+  { icon: 'notifications-outline', title: '알림 설정',     sub: '응급실 혼잡 알림' },
 ];
 
 export default function ProfileScreen({ onLogout }) {
@@ -30,7 +31,10 @@ export default function ProfileScreen({ onLogout }) {
     >
       {/* 응급 정보 카드 */}
       <View style={s.emergencyCard}>
-        <Text style={s.emergencyLabel}>🚨 응급 정보 카드</Text>
+        <View style={s.emergencyHeader}>
+          <Ionicons name="alert-circle" size={18} color="#fff" />
+          <Text style={s.emergencyLabel}>응급 정보 카드</Text>
+        </View>
         <View style={s.grid}>
           {EMERGENCY_INFO.map(item => (
             <View key={item.label} style={s.gridCell}>
@@ -53,18 +57,18 @@ export default function ProfileScreen({ onLogout }) {
             ]}
             activeOpacity={0.7}
           >
-            <Text style={s.menuIcon}>{item.icon}</Text>
+            <Ionicons name={item.icon} size={22} color={t.text} />
             <View style={s.menuText}>
               <Text style={[s.menuTitle, { color: t.text }]}>{item.title}</Text>
               <Text style={[s.menuSub, { color: t.textSub }]}>{item.sub}</Text>
             </View>
-            <Text style={[s.chevron, { color: t.textSub }]}>›</Text>
+            <Ionicons name="chevron-forward" size={18} color={t.textSub} />
           </TouchableOpacity>
         ))}
 
         {/* 다크모드 토글 */}
         <View style={[s.menuRow, { borderBottomWidth: 0 }]}>
-          <Text style={s.menuIcon}>{isDark ? '🌙' : '☀️'}</Text>
+          <Ionicons name={isDark ? 'moon-outline' : 'sunny-outline'} size={22} color={t.text} />
           <View style={s.menuText}>
             <Text style={[s.menuTitle, { color: t.text }]}>
               {isDark ? '다크 모드' : '라이트 모드'}
@@ -105,7 +109,8 @@ const s = StyleSheet.create({
   emergencyCard: {
     backgroundColor: '#E24B4A', borderRadius: 14, padding: 16,
   },
-  emergencyLabel:{ color: '#fff', fontSize: 13, fontWeight: '700', marginBottom: 12 },
+  emergencyHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  emergencyLabel:{ color: '#fff', fontSize: 13, fontWeight: '700' },
   grid:          { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   gridCell:      { width: '45%' },
   cellLabel:     { color: 'rgba(255,255,255,0.75)', fontSize: 11, marginBottom: 2 },
@@ -115,11 +120,9 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     padding: 14, borderBottomWidth: 0.5, gap: 12,
   },
-  menuIcon:      { fontSize: 20 },
   menuText:      { flex: 1 },
   menuTitle:     { fontSize: 14, fontWeight: '500', marginBottom: 1 },
   menuSub:       { fontSize: 12 },
-  chevron:       { fontSize: 20 },
   version:       { textAlign: 'center', fontSize: 12, marginTop: 4 },
   logoutBtn:     {
     marginTop: 12, borderWidth: 1, borderRadius: 12,

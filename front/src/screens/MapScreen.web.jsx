@@ -19,7 +19,7 @@ export default function MapScreen() {
   };
 
   const renderWebMap = () => {
-    const GOOGLE_API_KEY = "43de3a65ed6abac768382a5a57a4ac37";
+    const GOOGLE_API_KEY = "AIzaSyA7WfB-0w4rrx9Xc-XN7wMIQ4QYnBT0_Nw";
     const targetLat = selected ? selected.lat : MY_LOCATION.latitude;
     const targetLng = selected ? selected.lng : MY_LOCATION.longitude;
     

@@ -15,6 +15,7 @@ import LoginScreen       from './src/screens/LoginScreen';
 import SignUpScreen      from './src/screens/SignUpScreen';
 import FindAccountScreen from './src/screens/FindAccountScreen';
 import { updateLocation } from './src/api/userApi';
+import { Ionicons } from '@expo/vector-icons';
 
 const USER_KEY = 'fivemin_user';
 
@@ -130,7 +131,10 @@ function Main() {
         backgroundColor={t.headerBg}
       />
       <View style={[s.header, { backgroundColor: t.headerBg }]}>
-        <Text style={[s.headerTitle, { color: t.headerText }]}>🚑 응급실 안내</Text>
+        <View style={s.headerRow}>
+          <Ionicons name="medical" size={18} color="#E24B4A" />
+          <Text style={[s.headerTitle, { color: t.headerText }]}>응급실 안내</Text>
+        </View>
         <Text style={[s.headerSub,  { color: t.headerText }]}>
           {user?.name ? `${user.name}님` : '현재 위치'}
         </Text>
@@ -157,6 +161,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
+  headerRow:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerTitle: { fontSize: 16, fontWeight: '700' },
   headerSub:   { fontSize: 12, opacity: 0.85 },
   content:     { flex: 1 },

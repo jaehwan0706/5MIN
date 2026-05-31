@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { HOSPITALS, LEVEL_COLOR, LEVEL_LABEL } from '../constants/hospitals';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function PedsScreen() {
   const { theme: t } = useTheme();
@@ -62,7 +63,10 @@ export default function PedsScreen() {
               onPress={() => call(h.tel)}
               activeOpacity={0.8}
             >
-              <Text style={s.callTxt}>📞 전화</Text>
+              <View style={s.callRow}>
+                <Ionicons name="call" size={14} color="#fff" />
+                <Text style={s.callTxt}>전화</Text>
+              </View>
             </TouchableOpacity>
           </View>
         ))}
@@ -71,7 +75,10 @@ export default function PedsScreen() {
       {/* 미운영 병원 경고 */}
       {noPedHospitals.length > 0 && (
         <View style={s.warnBox}>
-          <Text style={s.warnTitle}>⚠️ 야간 소아 진료 불가 병원</Text>
+          <View style={s.warnHeader}>
+            <Ionicons name="warning-outline" size={16} color="#633806" />
+            <Text style={s.warnTitle}>야간 소아 진료 불가 병원</Text>
+          </View>
           {noPedHospitals.map(h => (
             <Text key={h.id} style={s.warnItem}>
               · {h.name} — {h.warning || '소아과 미운영'}
@@ -107,10 +114,12 @@ const s = StyleSheet.create({
   bedUnit:     { fontSize: 13 },
   gridMeta:    { fontSize: 11, marginTop: 2 },
   callBtn:     { marginTop: 8, borderRadius: 6, paddingVertical: 6, alignItems: 'center' },
+  callRow:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
   callTxt:     { color: '#fff', fontSize: 12, fontWeight: '600' },
   warnBox:     {
     backgroundColor: '#FAEEDA', borderRadius: 10, padding: 12,
   },
-  warnTitle:   { fontSize: 13, fontWeight: '700', color: '#633806', marginBottom: 6 },
+  warnHeader:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  warnTitle:   { fontSize: 13, fontWeight: '700', color: '#633806' },
   warnItem:    { fontSize: 12, color: '#633806', marginBottom: 2 },
 });

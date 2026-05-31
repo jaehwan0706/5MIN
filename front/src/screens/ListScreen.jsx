@@ -3,12 +3,13 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { useTheme } from '../theme/ThemeContext';
 import HospitalCard from '../components/HospitalCard';
 import { HOSPITALS } from '../constants/hospitals';
+import { Ionicons } from '@expo/vector-icons';
 
 const FILTERS = [
-  { value: 'all',   label: '전체' },
-  { value: 'fav',   label: '⭐ 즐겨찾기' },
-  { value: 'green', label: '🟢 여유' },
-  { value: 'peds',  label: '👶 소아' },
+  { value: 'all',   label: '전체', icon: null },
+  { value: 'fav',   label: '즐겨찾기', icon: 'star' },
+  { value: 'green', label: '여유', icon: 'ellipse' },
+  { value: 'peds',  label: '소아', icon: 'medical' },
 ];
 
 export default function ListScreen() {
@@ -33,6 +34,8 @@ export default function ListScreen() {
       >
         {FILTERS.map(f => {
           const active = filter === f.value;
+          const iconColor = f.value === 'green' ? '#2ECC71' : (active ? t.chipActiveTxt : t.textSub);
+          
           return (
             <TouchableOpacity
               key={f.value}
@@ -46,9 +49,19 @@ export default function ListScreen() {
               ]}
               activeOpacity={0.7}
             >
-              <Text style={[s.chipTxt, { color: active ? t.chipActiveTxt : t.textSub }]}>
-                {f.label}
-              </Text>
+              <View style={s.chipContent}>
+                {f.icon && (
+                  <Ionicons 
+                    name={f.icon} 
+                    size={14} 
+                    color={iconColor} 
+                    style={{ marginRight: 4 }}
+                  />
+                )}
+                <Text style={[s.chipTxt, { color: active ? t.chipActiveTxt : t.textSub }]}>
+                  {f.label}
+                </Text>
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -70,7 +83,8 @@ const s = StyleSheet.create({
   container: { flex: 1 },
   chipBar:   { borderBottomWidth: 0.5, maxHeight: 52 },
   chips:     { paddingHorizontal: 12, paddingVertical: 10, gap: 8, flexDirection: 'row' },
-  chip:      { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 99, borderWidth: 1 },
+  chip:      { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99, borderWidth: 1 },
+  chipContent: { flexDirection: 'row', alignItems: 'center' },
   chipTxt:   { fontSize: 12, fontWeight: '500' },
   list:      { padding: 12 },
   empty:     { textAlign: 'center', marginTop: 40, fontSize: 14 },
