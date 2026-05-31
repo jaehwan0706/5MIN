@@ -5,13 +5,6 @@ import {
 import { useTheme } from '../theme/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 
-const EMERGENCY_INFO = [
-  { label: '혈액형',  value: 'A+' },
-  { label: '지병',    value: '고혈압, 당뇨' },
-  { label: '알레르기', value: '페니실린' },
-  { label: '보호자',  value: '010-1234-5678' },
-];
-
 const MENU_ITEMS = [
   { icon: 'car-outline', title: '내 차량 정보',  sub: '차량번호 · 보험사' },
   { icon: 'medkit-outline', title: '복용 중인 약',  sub: '3가지 약물 등록됨' },
@@ -20,8 +13,15 @@ const MENU_ITEMS = [
   { icon: 'notifications-outline', title: '알림 설정',     sub: '응급실 혼잡 알림' },
 ];
 
-export default function ProfileScreen({ onLogout }) {
+export default function ProfileScreen({ onLogout, user }) {
   const { theme: t, isDark, toggle } = useTheme();
+
+  const emergencyInfo = [
+    { label: '혈액형',  value: user?.bloodType || '-' },
+    { label: '지병',    value: user?.chronicDisease || '-' },
+    { label: '보호자',  value: user?.emergencyContact || '-' },
+    { label: '이메일',  value: user?.email || '-' },
+  ];
 
   return (
     <ScrollView
@@ -29,6 +29,15 @@ export default function ProfileScreen({ onLogout }) {
       contentContainerStyle={s.content}
       showsVerticalScrollIndicator={false}
     >
+      {/* 상단 프로필 헤더 추가 (이름 표시) */}
+      <View style={s.profileHeader}>
+        <View style={s.avatar}>
+          <Ionicons name="person" size={32} color="#fff" />
+        </View>
+        <Text style={[s.userName, { color: t.text }]}>{user?.name || '사용자'}님</Text>
+        <Text style={[s.userEmail, { color: t.textSub }]}>{user?.email}</Text>
+      </View>
+
       {/* 응급 정보 카드 */}
       <View style={s.emergencyCard}>
         <View style={s.emergencyHeader}>
@@ -36,7 +45,7 @@ export default function ProfileScreen({ onLogout }) {
           <Text style={s.emergencyLabel}>응급 정보 카드</Text>
         </View>
         <View style={s.grid}>
-          {EMERGENCY_INFO.map(item => (
+          {emergencyInfo.map(item => (
             <View key={item.label} style={s.gridCell}>
               <Text style={s.cellLabel}>{item.label}</Text>
               <Text style={s.cellValue}>{item.value}</Text>
@@ -106,6 +115,13 @@ export default function ProfileScreen({ onLogout }) {
 const s = StyleSheet.create({
   scroll:        { flex: 1 },
   content:       { padding: 12, gap: 12, paddingBottom: 32 },
+  profileHeader: { alignItems: 'center', paddingVertical: 20 },
+  avatar: {
+    width: 64, height: 64, borderRadius: 32, backgroundColor: '#E24B4A',
+    justifyContent: 'center', alignItems: 'center', marginBottom: 12,
+  },
+  userName: { fontSize: 20, fontWeight: '700', marginBottom: 4 },
+  userEmail: { fontSize: 14 },
   emergencyCard: {
     backgroundColor: '#E24B4A', borderRadius: 14, padding: 16,
   },

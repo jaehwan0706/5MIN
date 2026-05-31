@@ -2,9 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert
 } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 
 import { useTheme } from '../theme/ThemeContext';
 import HospitalCard from '../components/HospitalCard';
@@ -166,9 +166,32 @@ export default function MapScreen({ userId }) {
           provider={PROVIDER_DEFAULT}
           initialRegion={{ ...DEFAULT_LOCATION, latitudeDelta: 0.08, longitudeDelta: 0.06 }}
           userInterfaceStyle={t.mode}
-          showsUserLocation={true}
+          showsUserLocation={false} // 커스텀 마커를 사용하므로 끔
           showsMyLocationButton={false}
         >
+          {/* 내 위치 커스텀 마커 및 1km 반경 원 */}
+          {myLocation && (
+            <>
+              <Marker
+                coordinate={myLocation}
+                title="내 위치"
+                zIndex={20}
+              >
+                <View style={s.userMarker}>
+                  <FontAwesome5 name="user-alt" size={18} color="#fff" />
+                </View>
+              </Marker>
+              <Circle
+                center={myLocation}
+                radius={1000} // 1km
+                fillColor="rgba(135, 206, 235, 0.3)" // 연한 하늘색 반투명
+                strokeColor="rgba(135, 206, 235, 0.6)"
+                strokeWidth={2}
+                zIndex={15}
+              />
+            </>
+          )}
+
           {/* 주변 병원 핀 마커 루프 */}
           {hospitals.map(h => (
             <Marker
@@ -288,4 +311,9 @@ const s = StyleSheet.create({
   },
   listName:    { flex: 1, fontSize: 13 },
   listMeta:    { fontSize: 12 },
+  userMarker:  {
+    backgroundColor: '#185FA5', padding: 8, borderRadius: 20,
+    borderWidth: 2, borderColor: '#fff',
+    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, elevation: 5,
+  },
 });

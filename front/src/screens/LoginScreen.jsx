@@ -9,7 +9,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import * as AuthSession from 'expo-auth-session';
 
-import { socialLogin } from '../api/userApi';
+import { socialLogin, kakaoLogin } from '../api/userApi';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -109,62 +109,18 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
   useEffect(() => {
     if (kakaoResponse?.type === 'success') {
       const { code } = kakaoResponse.params;
-      getKakaoToken(code);
+      handleKakaoLogin(code);
     }
   }, [kakaoResponse]);
 
-  const getKakaoToken = async (code) => {
+  const handleKakaoLogin = async (code) => {
     try {
-      // 쿼리 스트링 대신 Body에 담아 보내는 방식으로 변경 (더 안정적)
-      const params = new URLSearchParams();
-      params.append('grant_type', 'authorization_code');
-      params.append('client_id', KAKAO_REST_API_KEY);
-      params.append('redirect_uri', redirectUri);
-      params.append('code', code);
-
-      const tokenResponse = await fetch('https://kauth.kakao.com/oauth/token', {
-        method: 'POST',
-        headers: { 'Content-type': 'application/x-www-form-urlencoded;charset=utf-8' },
-        body: params.toString(),
-      });
-      
-      const tokenData = await tokenResponse.json();
-      console.log('[5MIN] Kakao Token Response:', tokenData);
-
-      if (tokenData.access_token) {
-        getKakaoUserInfo(tokenData.access_token);
-      } else {
-        console.error('[5MIN] Kakao Token Error Detail:', JSON.stringify(tokenData, null, 2));
-        Alert.alert('로그인 오류', `카카오 에러: ${tokenData.error_description || tokenData.error || 'Unknown Error'} (${tokenData.error_code || 'No Code'})`);
-      }
-    } catch (error) {
-      console.error('[5MIN] Kakao Network Error:', error);
-      Alert.alert('네트워크 오류', '카카오 토큰 발급 중 오류가 발생했습니다.');
-    }
-  };
-
-  const getKakaoUserInfo = async (token) => {
-    try {
-      const userRes = await fetch('https://kapi.kakao.com/v2/user/me', {
-        method: 'POST',
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-type': 'application/x-www-form-urlencoded;charset=utf-8',
-        },
-      });
-      const userData = await userRes.json();
-      console.log('[5MIN] Kakao User Info:', userData);
-      
-      const user = await socialLogin(
-        'KAKAO', 
-        userData.id.toString(), 
-        userData.kakao_account?.email || `${userData.id}@kakao.com`, 
-        userData.properties?.nickname || '카카오 사용자'
-      );
+      console.log('[5MIN] Kakao Login with code:', code);
+      const user = await kakaoLogin(code, redirectUri);
       onLoginSuccess(user);
     } catch (error) {
-      console.error('[5MIN] Kakao Profile Error:', error);
-      Alert.alert('정보 오류', '사용자 정보를 가져오지 못했습니다.');
+      console.error('[5MIN] Kakao Login Error:', error);
+      Alert.alert('로그인 오류', error.message || '카카오 로그인에 실패했습니다.');
     }
   };
 

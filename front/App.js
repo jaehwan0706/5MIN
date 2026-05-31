@@ -13,13 +13,14 @@ import GoldenScreen      from './src/screens/GoldenScreen';
 import ProfileScreen     from './src/screens/ProfileScreen';
 import LoginScreen       from './src/screens/LoginScreen';
 import SignUpScreen      from './src/screens/SignUpScreen';
+import SocialSignupScreen from './src/screens/SocialSignupScreen';
 import FindAccountScreen from './src/screens/FindAccountScreen';
 import { updateLocation } from './src/api/userApi';
 import { Ionicons } from '@expo/vector-icons';
 
 const USER_KEY = 'fivemin_user';
 
-// auth 상태: 'loading' | 'login' | 'signup' | 'find' | 'app'
+// auth 상태: 'loading' | 'login' | 'signup' | 'social_signup' | 'find' | 'app'
 function Main() {
   const { theme: t, isDark } = useTheme();
   const [auth, setAuth] = useState('loading');
@@ -35,7 +36,12 @@ function Main() {
           const userData = JSON.parse(saved);
           console.log('[5MIN] Loaded saved user:', userData);
           setUser(userData);
-          setAuth('app');
+          // 필수 정보(혈액형 등)가 없으면 정보 입력 화면으로 보냄
+          if (userData.infoCompleted) {
+            setAuth('app');
+          } else {
+            setAuth('social_signup');
+          }
         } else {
           setAuth('login');
         }
@@ -65,7 +71,11 @@ function Main() {
     try {
       await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
       setUser(userData);
-      setAuth('app');
+      if (userData.infoCompleted) {
+        setAuth('app');
+      } else {
+        setAuth('social_signup');
+      }
     } catch (err) {
       console.error('[5MIN] Save user error:', err);
     }
@@ -78,7 +88,7 @@ function Main() {
   };
 
   const handleLoginSuccess = (userData) => {
-    console.log('[5MIN] Login success, navigating to app:', userData);
+    console.log('[5MIN] Login success, checking infoCompleted:', userData);
     saveUser(userData);
   };
 
@@ -112,6 +122,14 @@ function Main() {
     return (
       <SignUpScreen
         onBack={() => setAuth('login')}
+        onComplete={handleLoginSuccess}
+      />
+    );
+  }
+  if (auth === 'social_signup') {
+    return (
+      <SocialSignupScreen
+        user={user}
         onComplete={handleLoginSuccess}
       />
     );

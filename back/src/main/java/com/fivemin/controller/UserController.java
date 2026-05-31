@@ -67,10 +67,27 @@ public class UserController {
         }
     }
 
+    // 카카오 전용 로그인 (인가 코드로 처리)
+    // POST /api/user/login/kakao
+    @PostMapping("/login/kakao")
+    public ResponseEntity<Map<String, Object>> kakaoLogin(@Valid @RequestBody KakaoLoginRequest req) {
+        try {
+            System.out.println("[5MIN] Kakao Login with code: " + req.code);
+            User user = userService.loginWithKakao(req.code, req.redirectUri);
+            return ResponseEntity.ok(toUserResponse(user, "카카오 로그인 성공"));
+        } catch (Exception e) {
+            System.err.println("[5MIN] Kakao Login Error: " + e.getMessage());
+            e.printStackTrace();
+            Map<String, Object> error = new LinkedHashMap<>();
+            error.put("error", "카카오 로그인 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.status(500).body(error);
+        }
+    }
+
     // 사용자 프로필 조회
     // GET /api/user/{id}
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getUser(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> getUser(@PathVariable(value = "id") Long id) {
         User user = userService.findById(id);
         return ResponseEntity.ok(toUserResponse(user, null));
     }
@@ -80,7 +97,7 @@ public class UserController {
     // Body: { "latitude":37.527, "longitude":127.108 }
     @PutMapping("/location/{id}")
     public ResponseEntity<Map<String, Object>> updateLocation(
-            @PathVariable Long id,
+            @PathVariable(value = "id") Long id,
             @Valid @RequestBody LocationRequest req) {
         User user = userService.updateLocation(id, req.latitude, req.longitude);
         Map<String, Object> response = new LinkedHashMap<>();
@@ -89,6 +106,16 @@ public class UserController {
         response.put("longitude", user.getLongitude());
         response.put("message", "위치 업데이트 성공");
         return ResponseEntity.ok(response);
+    }
+
+    // 추가 의료 정보 업데이트
+    // PUT /api/user/medical/{id}
+    @PutMapping("/medical/{id}")
+    public ResponseEntity<Map<String, Object>> updateMedicalInfo(
+            @PathVariable(value = "id") Long id,
+            @Valid @RequestBody MedicalInfoRequest req) {
+        User user = userService.updateMedicalInfo(id, req.bloodType, req.chronicDisease, req.emergencyContact);
+        return ResponseEntity.ok(toUserResponse(user, "의료 정보 업데이트 성공"));
     }
 
     // password 필드는 응답에서 제외, null 위치는 그대로 null 반환
@@ -100,6 +127,10 @@ public class UserController {
         map.put("phone", user.getPhone());
         map.put("latitude", user.getLatitude());
         map.put("longitude", user.getLongitude());
+        map.put("bloodType", user.getBloodType());
+        map.put("chronicDisease", user.getChronicDisease());
+        map.put("emergencyContact", user.getEmergencyContact());
+        map.put("infoCompleted", user.isInfoCompleted());
         if (message != null) map.put("message", message);
         return map;
     }
@@ -147,11 +178,30 @@ public class UserController {
         public String name;
     }
 
+    public static class KakaoLoginRequest {
+        @NotBlank(message = "인가 코드를 입력해주세요.")
+        public String code;
+
+        @NotBlank(message = "리다이렉트 URI를 입력해주세요.")
+        public String redirectUri;
+    }
+
     public static class LocationRequest {
         @NotNull(message = "위도를 입력해주세요.")
         public Double latitude;
 
         @NotNull(message = "경도를 입력해주세요.")
         public Double longitude;
+    }
+
+    public static class MedicalInfoRequest {
+        @NotBlank(message = "혈액형을 입력해주세요.")
+        public String bloodType;
+
+        @NotBlank(message = "지병/특이사항을 입력해주세요.")
+        public String chronicDisease;
+
+        @NotBlank(message = "보호자 연락처를 입력해주세요.")
+        public String emergencyContact;
     }
 }

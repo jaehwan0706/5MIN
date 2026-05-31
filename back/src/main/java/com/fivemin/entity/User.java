@@ -45,6 +45,19 @@ public class User {
     @Column(name = "longitude")
     private Double longitude;
 
+    // 추가 의료 정보 및 연동 상태
+    @Column(name = "blood_type")
+    private String bloodType; // 혈액형 (A, B, O, AB / Rh+, Rh-)
+
+    @Column(name = "chronic_disease")
+    private String chronicDisease; // 지병/특이사항
+
+    @Column(name = "emergency_contact")
+    private String emergencyContact; // 보호자 연락처
+
+    @Column(name = "info_completed", nullable = false)
+    private boolean infoCompleted = false; // 필수 정보 입력 여부
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 }

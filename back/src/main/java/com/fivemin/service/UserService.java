@@ -2,9 +2,16 @@ package com.fivemin.service;
 
 import com.fivemin.entity.User;
 import com.fivemin.repository.UserRepository;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
+
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -13,9 +20,68 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final RestTemplate restTemplate;
 
-    public UserService(UserRepository userRepository) {
+    @Value("${kakao.rest.key}")
+    private String kakaoRestKey;
+
+    @Value("${kakao.rest.secret}")
+    private String kakaoRestSecret;
+
+    public UserService(UserRepository userRepository, RestTemplate restTemplate) {
         this.userRepository = userRepository;
+        this.restTemplate = restTemplate;
+    }
+
+    // 카카오 인가 코드로 토큰 발급 및 사용자 정보 조회 후 로그인 처리
+    @Transactional
+    public User loginWithKakao(String code, String redirectUri) {
+        try {
+            // 1. 토큰 발급 요청
+            String tokenUrl = "https://kauth.kakao.com/oauth/token";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("grant_type", "authorization_code");
+            params.add("client_id", kakaoRestKey);
+            params.add("client_secret", kakaoRestSecret); // Client Secret 추가
+            params.add("redirect_uri", redirectUri);
+            params.add("code", code);
+
+            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(tokenUrl, request, String.class);
+
+            JSONObject tokenJson = new JSONObject(response.getBody());
+            String accessToken = tokenJson.getString("access_token");
+
+            // 2. 사용자 정보 조회
+            String userUrl = "https://kapi.kakao.com/v2/user/me";
+            HttpHeaders userHeaders = new HttpHeaders();
+            userHeaders.setBearerAuth(accessToken);
+            userHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            HttpEntity<String> userRequest = new HttpEntity<>(userHeaders);
+            ResponseEntity<String> userResponse = restTemplate.postForEntity(userUrl, userRequest, String.class);
+
+            JSONObject userJson = new JSONObject(userResponse.getBody());
+            String providerId = String.valueOf(userJson.getLong("id"));
+            
+            JSONObject kakaoAccount = userJson.optJSONObject("kakao_account");
+            String email = (kakaoAccount != null && kakaoAccount.has("email")) 
+                    ? kakaoAccount.getString("email") : providerId + "@kakao.com";
+            
+            JSONObject properties = userJson.optJSONObject("properties");
+            String nickname = (properties != null && properties.has("nickname")) 
+                    ? properties.getString("nickname") : "카카오 사용자";
+
+            return processSocialLogin("KAKAO", providerId, email, nickname);
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            System.err.println("[5MIN] Kakao API Error Body: " + e.getResponseBodyAsString());
+            throw new RuntimeException("카카오 서버 오류: " + e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            throw new RuntimeException("카카오 로그인 처리 중 오류 발생: " + e.getMessage(), e);
+        }
     }
 
     // 회원가입 — 위치 정보(위도/경도) 함께 저장, 비밀번호 BCrypt 해싱
@@ -84,6 +150,18 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         user.setLatitude(latitude);
         user.setLongitude(longitude);
+        return userRepository.save(user);
+    }
+
+    // 의료 정보 업데이트 및 필수 정보 입력 완료 처리
+    @Transactional
+    public User updateMedicalInfo(Long userId, String bloodType, String chronicDisease, String emergencyContact) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        user.setBloodType(bloodType);
+        user.setChronicDisease(chronicDisease);
+        user.setEmergencyContact(emergencyContact);
+        user.setInfoCompleted(true); // 입력 완료 설정
         return userRepository.save(user);
     }
 

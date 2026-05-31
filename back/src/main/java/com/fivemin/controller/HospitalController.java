@@ -43,11 +43,11 @@ public class HospitalController {
     // 옵션: radius(km, 기본 5), limit(최대 개수, 기본 20)
     @GetMapping("/nearby")
     public ResponseEntity<?> getNearbyHospitals(
-            @RequestParam(required = false) Double lat,
-            @RequestParam(required = false) Double lon,
-            @RequestParam(required = false) Long userId,
-            @RequestParam(defaultValue = "5.0") double radius,
-            @RequestParam(defaultValue = "20") int limit) {
+            @RequestParam(value = "lat", required = false) Double lat,
+            @RequestParam(value = "lon", required = false) Double lon,
+            @RequestParam(value = "userId", required = false) Long userId,
+            @RequestParam(value = "radius", defaultValue = "5.0") double radius,
+            @RequestParam(value = "limit", defaultValue = "20") int limit) {
 
         if (userId != null) {
             Optional<User> user = userRepository.findById(userId);

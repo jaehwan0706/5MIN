@@ -3,17 +3,15 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert
 } from 'react-native';
 import * as Location from 'expo-location';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 
 import { useTheme } from '../theme/ThemeContext';
 import HospitalCard from '../components/HospitalCard';
 import { LEVEL_COLOR, LEVEL_LABEL } from '../constants/hospitals';
 import { fetchNearbyHospitals, fetchRealtimeBeds } from '../api/hospitalApi';
 
-// GPS 취득 전 기본값 (서울 중심)
 const DEFAULT_LOCATION = { latitude: 37.5665, longitude: 126.9780 };
 
-// 위도/경도 기반 거리 계산 (km 반환)
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = deg2rad(lat2 - lat1);
@@ -25,11 +23,9 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return (R * c).toFixed(1);
 }
-function deg2rad(deg) {
-  return deg * (Math.PI / 180);
-}
+function deg2rad(deg) { return deg * (Math.PI / 180); }
 
-export default function MapScreen() {
+export default function MapScreen({ userId }) {
   const { theme: t } = useTheme();
   const [hospitals, setHospitals] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -39,16 +35,13 @@ export default function MapScreen() {
   const loadHospitals = async (lat, lng) => {
     try {
       const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 5, 20);
-      
       let stage1 = '';
       try {
         const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
         if (geocode && geocode.length > 0) {
           stage1 = geocode[0].region || geocode[0].city || '';
         }
-      } catch (e) {
-        console.log("Reverse geocode failed on web:", e);
-      }
+      } catch (e) {}
       
       let realtimeBeds = [];
       try {
@@ -57,22 +50,18 @@ export default function MapScreen() {
           const items = bedsRes.response.body.items.item;
           realtimeBeds = Array.isArray(items) ? items : [items];
         }
-      } catch (err) {
-        console.log("Realtime beds info fetch failed:", err);
-      }
+      } catch (err) {}
 
       const mappedHospitals = nearbyDbHospitals.map(dbHosp => {
         const rTime = realtimeBeds.find(b => b.hpid === dbHosp.hpid);
         let bedsCount = 0;
         let level = 'green';
-
         if (rTime) {
           bedsCount = parseInt(rTime.hvec || 0, 10);
           if (bedsCount < 3) level = 'red';
           else if (bedsCount <= 5) level = 'yellow';
           else level = 'green';
         }
-
         return {
           id: dbHosp.hpid,
           name: dbHosp.dutyName,
@@ -88,9 +77,7 @@ export default function MapScreen() {
       });
 
       setHospitals(mappedHospitals);
-      if (mappedHospitals.length > 0) {
-        setSelected(mappedHospitals[0]);
-      }
+      if (mappedHospitals.length > 0) setSelected(mappedHospitals[0]);
     } catch (error) {
       console.error(error);
       Alert.alert("오류", "병원 정보를 불러오는 데 실패했습니다.");
@@ -106,13 +93,8 @@ export default function MapScreen() {
         setLoading(false);
         return;
       }
-
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const coords = {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
-      };
-      
+      const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
       setMyLocation(coords);
       await loadHospitals(coords.latitude, coords.longitude);
     } catch (error) {
@@ -122,20 +104,15 @@ export default function MapScreen() {
     }
   };
 
-  useEffect(() => {
-    moveToMyLocation();
-  }, []);
-
-  const focusHospital = h => {
-    setSelected(h);
-  };
+  useEffect(() => { moveToMyLocation(); }, []);
 
   const renderWebMap = () => {
     const GOOGLE_API_KEY = "AIzaSyA7WfB-0w4rrx9Xc-XN7wMIQ4QYnBT0_Nw";
     const targetLat = selected ? selected.lat : (myLocation?.latitude || DEFAULT_LOCATION.latitude);
     const targetLng = selected ? selected.lng : (myLocation?.longitude || DEFAULT_LOCATION.longitude);
     
-    const mapUrl = `https://www.google.com/maps/embed/v1/view?key=${GOOGLE_API_KEY}&center=${targetLat},${targetLng}&zoom=14`;
+    // Embed API with a marker at target
+    const mapUrl = `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_API_KEY}&q=${targetLat},${targetLng}&zoom=15`;
 
     return (
       <View style={s.webMapContainer}>
@@ -143,27 +120,25 @@ export default function MapScreen() {
           src={mapUrl}
           width="100%"
           height="260"
-          style={{ border: 0, borderRadius: '0px' }}
+          style={{ border: 0 }}
           allowFullScreen
           loading="lazy"
         />
-        
-        {/* 내 위치 이동 버튼 (웹용) */}
         <TouchableOpacity 
           style={[s.myLocationBtn, { backgroundColor: t.bgCard }]} 
           onPress={moveToMyLocation}
-          activeOpacity={0.8}
         >
-          {loading ? (
-            <ActivityIndicator size="small" color={t.primary || '#185FA5'} />
-          ) : (
-            <MaterialIcons name="my-location" size={20} color={t.primary || '#185FA5'} />
-          )}
+          {loading ? <ActivityIndicator size="small" color="#E24B4A" /> : <MaterialIcons name="my-location" size={24} color="#E24B4A" />}
         </TouchableOpacity>
 
-        <View style={s.webMapOverlay}>
-          <Text style={s.webMapOverlayTxt}>💻 브라우저 모드 (실시간 데이터 연동)</Text>
-        </View>
+        {myLocation && (
+          <View style={s.webMapOverlay}>
+            <View style={s.overlayRow}>
+              <FontAwesome5 name="user-alt" size={10} color="#4A90D9" />
+              <Text style={s.webMapOverlayTxt}>내 위치 기준 1km 반경 표시 중</Text>
+            </View>
+          </View>
+        )}
       </View>
     );
   };
@@ -171,7 +146,6 @@ export default function MapScreen() {
   return (
     <View style={[s.container, { backgroundColor: t.bg }]}>
       {renderWebMap()}
-
       <View style={[s.legend, { backgroundColor: t.bgCard }]}>
         {Object.entries(LEVEL_COLOR).map(([k, c]) => (
           <View key={k} style={s.legendItem}>
@@ -180,31 +154,12 @@ export default function MapScreen() {
           </View>
         ))}
       </View>
-
-      <ScrollView
-        style={[s.sheet, { backgroundColor: t.bg }]}
-        contentContainerStyle={{ padding: 12 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={[s.sheet, { backgroundColor: t.bg }]} contentContainerStyle={{ padding: 12 }}>
         <Text style={[s.sectionTitle, { color: t.textSub }]}>선택된 병원</Text>
-        {selected ? (
-          <HospitalCard hospital={selected} compact />
-        ) : (
-          <Text style={{ color: t.textSub, marginVertical: 10 }}>
-            {loading ? "위치 정보를 가져오는 중..." : "검색된 병원이 없습니다."}
-          </Text>
-        )}
-
-        {hospitals.length > 0 && (
-          <Text style={[s.sectionTitle, { color: t.textSub, marginTop: 8 }]}>주변 응급실 전체</Text>
-        )}
+        {selected ? <HospitalCard hospital={selected} compact /> : <Text style={{ color: t.textSub }}>병원 정보가 없습니다.</Text>}
+        {hospitals.length > 0 && <Text style={[s.sectionTitle, { color: t.textSub, marginTop: 8 }]}>주변 응급실 전체</Text>}
         {hospitals.filter(h => h.id !== selected?.id).map(h => (
-          <TouchableOpacity
-            key={h.id}
-            onPress={() => focusHospital(h)}
-            style={s.listRow}
-            activeOpacity={0.7}
-          >
+          <TouchableOpacity key={h.id} onPress={() => setSelected(h)} style={s.listRow}>
             <View style={[s.dot, { backgroundColor: LEVEL_COLOR[h.level] }]} />
             <Text style={[s.listName, { color: t.text }]}>{h.name}</Text>
             <Text style={[s.listMeta, { color: t.textSub }]}>{h.dist}</Text>
@@ -218,43 +173,28 @@ export default function MapScreen() {
 const s = StyleSheet.create({
   container:   { flex: 1 },
   webMapContainer: { height: 260, position: 'relative' },
-  webMapOverlay: {
-    position: 'absolute', bottom: 6, left: 6,
-    backgroundColor: 'rgba(0,0,0,0.65)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4,
-  },
-  webMapOverlayTxt: { color: '#fff', fontSize: 10, fontWeight: '600' },
   myLocationBtn: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    zIndex: 20,
+    position: 'absolute', bottom: 16, right: 16,
+    width: 44, height: 44, borderRadius: 22,
+    justifyContent: 'center', alignItems: 'center', elevation: 4, zIndex: 10,
   },
+  webMapOverlay: {
+    position: 'absolute', top: 10, left: 10,
+    backgroundColor: 'rgba(255,255,255,0.9)', padding: 6, borderRadius: 6,
+    borderWidth: 1, borderColor: '#4A90D9', zIndex: 10,
+  },
+  overlayRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  webMapOverlayTxt: { fontSize: 11, fontWeight: '600', color: '#4A90D9' },
   legend:      {
     position: 'absolute', top: 10, right: 10,
-    borderRadius: 8, padding: 6,
-    flexDirection: 'row', gap: 8,
-    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4,
-    zIndex: 10,
+    borderRadius: 8, padding: 6, flexDirection: 'row', gap: 8, zIndex: 10,
   },
   legendItem:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
   dot:         { width: 8, height: 8, borderRadius: 4 },
   legendTxt:   { fontSize: 11 },
   sheet:       { flex: 1 },
   sectionTitle:{ fontSize: 12, fontWeight: '600', marginBottom: 6 },
-  listRow:     {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 7, paddingHorizontal: 8, borderRadius: 8,
-  },
+  listRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, paddingHorizontal: 8 },
   listName:    { flex: 1, fontSize: 13 },
   listMeta:    { fontSize: 12 },
 });
