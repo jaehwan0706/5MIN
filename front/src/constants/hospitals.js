@@ -1,85 +1,5 @@
 export const HOSPITALS = [
-  {
-    id: 1,
-    name: '서울아산병원',
-    dist: '0.8km',
-    wait: 85,
-    beds: 3,
-    tel: '02-3010-3114',
-    lat: 37.527,
-    lng: 127.1082,
-    level: 'red',
-    er24: true,
-    peds: true,
-    pedBeds: 8,
-    warning: 'CT 장비 일시 점검 중 (오후 2~4시)',
-    fav: true,
-  },
-  {
-    id: 2,
-    name: '삼성서울병원',
-    dist: '2.1km',
-    wait: 42,
-    beds: 7,
-    tel: '02-3410-2114',
-    lat: 37.4881,
-    lng: 127.0851,
-    level: 'yellow',
-    er24: true,
-    peds: true,
-    pedBeds: 5,
-    warning: null,
-    fav: false,
-  },
-  {
-    id: 3,
-    name: '서울대학교병원',
-    dist: '3.4km',
-    wait: 28,
-    beds: 12,
-    tel: '02-2072-2114',
-    lat: 37.5796,
-    lng: 126.9989,
-    level: 'green',
-    er24: true,
-    peds: true,
-    pedBeds: 10,
-    warning: null,
-    fav: true,
-  },
-  {
-    id: 4,
-    name: '강남세브란스병원',
-    dist: '4.2km',
-    wait: 55,
-    beds: 4,
-    tel: '02-2019-3114',
-    lat: 37.4886,
-    lng: 127.0656,
-    level: 'red',
-    er24: false,
-    peds: false,
-    pedBeds: 0,
-    warning: '야간 소아과 의사 부재',
-    fav: false,
-  },
-  {
-    id: 5,
-    name: '한림대강남성심병원',
-    dist: '5.1km',
-    wait: 18,
-    beds: 15,
-    tel: '02-829-5114',
-    lat: 37.5107,
-    lng: 126.9226,
-    level: 'green',
-    er24: true,
-    peds: true,
-    pedBeds: 3,
-    warning: null,
-    fav: false,
-    moonBadge: true,
-  },
+  // ... (이전과 동일한 더미 데이터 구조, 실사용 시 API 연동됨)
 ];
 
 export const LEVEL_COLOR = {
@@ -101,12 +21,51 @@ export const LEVEL_LABEL = {
 };
 
 export const SYMPTOMS = [
-  { id: 'chest',      icon: '🫀', label: '가슴통증' },
-  { id: 'stroke',     icon: '🧠', label: '뇌졸중 의심' },
-  { id: 'breath',     icon: '🫁', label: '호흡 곤란' },
-  { id: 'bleed',      icon: '🩸', label: '심한 출혈' },
-  { id: 'burn',       icon: '🔥', label: '화상' },
-  { id: 'bone',       icon: '🦴', label: '골절 의심' },
-  { id: 'allergy',    icon: '⚠️', label: '알레르기 쇼크' },
-  { id: 'unconscious',icon: '😵', label: '의식 저하' },
+  { 
+    id: 'chest',      
+    icon: 'heart-pulse', 
+    label: '가슴통증',
+    guide: "1. 즉시 119에 신고하고 환자를 편안한 자세로 앉히거나 눕힙니다.\n2. 꽉 조이는 옷(넥타이, 벨트 등)을 풀어 호흡을 돕습니다.\n3. 환자가 의식이 없다면 즉시 심폐소생술(CPR)을 시행합니다.\n4. 임의로 약을 복용시키지 말고 구급대원을 기다립니다."
+  },
+  { 
+    id: 'stroke',     
+    icon: 'brain', 
+    label: '뇌졸중 의심',
+    guide: "1. '이-웃-손' 확인: 웃을 때 얼굴 비대칭, 말 어눌함, 팔 힘 빠짐을 체크합니다.\n2. 증상 발생 시간을 기록하고 즉시 119에 신고합니다.\n3. 환자를 눕히되 음식이나 물을 절대 주지 마세요(질식 위험).\n4. 의식이 없다면 옆으로 눕혀 기도 유지를 돕습니다."
+  },
+  { 
+    id: 'breath',     
+    icon: 'lungs', 
+    label: '호흡 곤란',
+    guide: "1. 환자가 가장 편해하는 자세(보통 앉은 자세)를 취하게 합니다.\n2. 창문을 열어 환기를 시키고 단추나 벨트를 풀어줍니다.\n3. 환자가 평소 사용하는 천식 흡입기가 있다면 사용을 돕습니다.\n4. 말을 시키지 말고 안정을 유도하며 119를 기다립니다."
+  },
+  { 
+    id: 'bleed',      
+    icon: 'water', 
+    label: '심한 출혈',
+    guide: "1. 깨끗한 수건이나 거즈로 상처 부위를 직접 강하게 압박합니다.\n2. 출혈 부위를 심장보다 높게 위치 시킵니다.\n3. 압박 중인 거즈를 떼지 말고, 피가 배어나오면 그 위에 새 거즈를 덧댑니다.\n4. 지혈대 사용은 최후의 수단으로만 고려하며 즉시 병원으로 이송합니다."
+  },
+  { 
+    id: 'burn',       
+    icon: 'fire', 
+    label: '화상',
+    guide: "1. 흐르는 찬물에 15~20분간 화상 부위를 충분히 식힙니다.\n2. 물집을 터뜨리지 말고, 옷이 피부에 달라붙었다면 억지로 떼지 마세요.\n3. 화상 연고나 된장 등을 바르지 말고 깨끗한 거즈로 덮어줍니다.\n4. 반지나 시계 등 장신구는 부종이 생기기 전에 미리 제거합니다."
+  },
+  { 
+    id: 'bone',       
+    icon: 'bone', 
+    label: '골절 의심',
+    guide: "1. 다친 부위를 움직이지 않게 고정합니다.\n2. 부종과 통증 감소를 위해 얼음찜질을 해줍니다(피부에 직접 닿지 않게).\n3. 뼈가 밖으로 나왔다면 억지로 넣으려 하지 말고 깨끗한 거즈로 덮습니다.\n4. 손상 부위 아래쪽의 감각이나 혈액순환을 수시로 확인합니다."
+  },
+  { 
+    id: 'allergy',    
+    icon: 'alert-outline', 
+    label: '알레르기 쇼크',
+    guide: "1. 원인 물질(음식, 벌침 등)로부터 환자를 즉시 격리합니다.\n2. 에피네프린 자동주사기(자가주사기)가 있다면 허벅지에 즉시 주사합니다.\n3. 환자를 눕히고 다리를 높게 들어 혈액순환을 돕습니다.\n4. 119 신고 시 '아나필락시스' 의심 상황임을 반드시 알립니다."
+  },
+  { 
+    id: 'unconscious',icon: 'head-question-outline', 
+    label: '의식 저하',
+    guide: "1. 어깨를 가볍게 두드리며 말을 걸어 반응을 확인합니다.\n2. 호흡이 없다면 즉시 119 신고 후 심폐소생술을 시작합니다.\n3. 호흡은 있으나 의식이 없다면 옆으로 눕히는 '회복 자세'를 취해줍니다.\n4. 입안에 이물질이 있는지 확인하고 기도 폐쇄를 예방합니다."
+  },
 ];

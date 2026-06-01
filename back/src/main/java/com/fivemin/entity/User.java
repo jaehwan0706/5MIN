@@ -33,6 +33,14 @@ public class User {
     @Column(name = "phone")
     private String phone;
 
+    // 로그인 제공자 (LOCAL, KAKAO, GOOGLE)
+    @Column(name = "provider", nullable = false)
+    private String provider = "LOCAL";
+
+    // 소셜 로그인 고유 ID
+    @Column(name = "provider_id")
+    private String providerId;
+
     // 사용자 현재 위치 위도
     @Column(name = "latitude")
     private Double latitude;

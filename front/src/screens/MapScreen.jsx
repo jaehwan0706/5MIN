@@ -1,34 +1,148 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert
 } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 
 import { useTheme } from '../theme/ThemeContext';
 import HospitalCard from '../components/HospitalCard';
-import { HOSPITALS, LEVEL_COLOR, LEVEL_LABEL } from '../constants/hospitals';
+import { LEVEL_COLOR, LEVEL_LABEL } from '../constants/hospitals';
+import { fetchNearbyHospitals, fetchRealtimeBeds } from '../api/hospitalApi';
 
 // GPS 취득 전 기본값 (서울 중심)
 const DEFAULT_LOCATION = { latitude: 37.5665, longitude: 126.9780 };
 
+// 위도/경도 기반 거리 계산 (km 반환)
+function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return (R * c).toFixed(1);
+}
+function deg2rad(deg) {
+  return deg * (Math.PI / 180);
+}
+
 export default function MapScreen({ userId }) {
   const { theme: t } = useTheme();
-  const [selected, setSelected] = useState(HOSPITALS[0]);
-  const [myLocation, setMyLocation] = useState(DEFAULT_LOCATION);
+  const [hospitals, setHospitals] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [myLocation, setMyLocation] = useState(null);
+  const [loading, setLoading] = useState(false);
   const mapRef = useRef(null);
 
-  // GPS 현재 위치 수신
-  useEffect(() => {
-    (async () => {
+  const loadHospitals = async (lat, lng) => {
+    try {
+      // 1. 내 주변 병원 DB에서 조회 (반경 5km, 최대 20개)
+      const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 5, 20);
+      
+      // 2. 현재 내 위치의 시/도 파악하여 실시간 API 조회
+      const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+      let stage1 = '';
+      if (geocode && geocode.length > 0) {
+        stage1 = geocode[0].region || geocode[0].city || ''; // 예: "서울특별시"
+      }
+      
+      let realtimeBeds = [];
+      try {
+        const bedsRes = await fetchRealtimeBeds(stage1);
+        if (bedsRes?.response?.body?.items?.item) {
+          const items = bedsRes.response.body.items.item;
+          realtimeBeds = Array.isArray(items) ? items : [items];
+        }
+      } catch (err) {
+        console.log("Realtime beds info fetch failed:", err);
+      }
+
+      // 3. DB 병원 정보와 실시간 응급실 정보 병합
+      const mappedHospitals = nearbyDbHospitals.map(dbHosp => {
+        const rTime = realtimeBeds.find(b => b.hpid === dbHosp.hpid);
+        let bedsCount = 0;
+        let level = 'green';
+        let warning = null;
+        let isER24 = false;
+
+        if (rTime) {
+          // hvec: 일반 응급실 병상
+          bedsCount = parseInt(rTime.hvec || 0, 10);
+          
+          if (bedsCount < 3) level = 'red';
+          else if (bedsCount <= 5) level = 'yellow';
+          else level = 'green';
+        }
+
+        return {
+          id: dbHosp.hpid,
+          name: dbHosp.dutyName,
+          dist: getDistanceFromLatLonInKm(lat, lng, dbHosp.wgs84Lat, dbHosp.wgs84Lon) + 'km',
+          wait: rTime ? '-' : '정보없음', // 실시간 대기시간이 없으면 기본값
+          beds: bedsCount,
+          tel: dbHosp.dutyTel1,
+          lat: dbHosp.wgs84Lat,
+          lng: dbHosp.wgs84Lon,
+          level: level,
+          warning: warning,
+          er24: isER24,
+          addr: dbHosp.dutyAddr,
+        };
+      });
+
+      setHospitals(mappedHospitals);
+      if (mappedHospitals.length > 0) {
+        setSelected(mappedHospitals[0]);
+      } else {
+        // 알림을 띄우되 위치는 변경되도록 둠
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert("오류", "병원 정보를 불러오는 데 실패했습니다.");
+    }
+  };
+
+  // 현재 위치 가져오기 및 지도 이동 함수
+  const moveToMyLocation = async () => {
+    setLoading(true);
+    try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
+      if (status !== 'granted') {
+        alert('위치 권한이 거부되었습니다.');
+        setLoading(false);
+        return;
+      }
+
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const coords = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      const coords = {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+      };
+      
       setMyLocation(coords);
-      // 지도 중심을 내 위치로 이동
-      mapRef.current?.animateToRegion({ ...coords, latitudeDelta: 0.08, longitudeDelta: 0.06 }, 600);
-    })();
+      mapRef.current?.animateToRegion({
+        ...coords,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      }, 600);
+
+      // 위치 기반 병원 정보 로드
+      await loadHospitals(coords.latitude, coords.longitude);
+
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 초기 로드시 내 위치로 이동
+  useEffect(() => {
+    moveToMyLocation();
   }, []);
 
   const focusHospital = h => {
@@ -37,53 +151,87 @@ export default function MapScreen({ userId }) {
       mapRef.current.animateToRegion({
         latitude:  h.lat,
         longitude: h.lng,
-        latitudeDelta:  0.04,
-        longitudeDelta: 0.03,
+        latitudeDelta:  0.01,
+        longitudeDelta: 0.01,
       }, 400);
     }
   };
 
   return (
     <View style={[s.container, { backgroundColor: t.bg }]}>
-      <MapView
-        ref={mapRef}
-        style={s.map}
-        provider={PROVIDER_DEFAULT}
-        initialRegion={{ ...DEFAULT_LOCATION, latitudeDelta: 0.08, longitudeDelta: 0.06 }}
-        userInterfaceStyle={t.mode}
-        showsUserLocation={false}
-      >
-        {/* 내 위치 마커 (GPS) */}
-        <Marker coordinate={myLocation} anchor={{ x: 0.5, y: 0.5 }}>
-          <View style={s.myDot} />
-        </Marker>
+      <View style={s.mapWrapper}>
+        <MapView
+          ref={mapRef}
+          style={s.map}
+          provider={PROVIDER_DEFAULT}
+          initialRegion={{ ...DEFAULT_LOCATION, latitudeDelta: 0.08, longitudeDelta: 0.06 }}
+          userInterfaceStyle={t.mode}
+          showsUserLocation={false} // 커스텀 마커를 사용하므로 끔
+          showsMyLocationButton={false}
+        >
+          {/* 내 위치 커스텀 마커 및 1km 반경 원 */}
+          {myLocation && (
+            <>
+              <Marker
+                coordinate={myLocation}
+                title="내 위치"
+                zIndex={20}
+              >
+                <View style={s.userMarker}>
+                  <FontAwesome5 name="user-alt" size={18} color="#fff" />
+                </View>
+              </Marker>
+              <Circle
+                center={myLocation}
+                radius={1000} // 1km
+                fillColor="rgba(135, 206, 235, 0.3)" // 연한 하늘색 반투명
+                strokeColor="rgba(135, 206, 235, 0.6)"
+                strokeWidth={2}
+                zIndex={15}
+              />
+            </>
+          )}
 
-        {/* 주변 병원 핀 마커 루프 */}
-        {HOSPITALS.map(h => (
-          <Marker
-            key={h.id}
-            coordinate={{ latitude: h.lat, longitude: h.lng }}
-            onPress={() => focusHospital(h)}
-          >
-            <View style={[
-              s.pin,
-              { backgroundColor: LEVEL_COLOR[h.level] },
-              selected?.id === h.id && s.pinSelected,
-            ]}>
-              <Text style={s.pinTxt}>{h.name}</Text>
+          {/* 주변 병원 핀 마커 루프 */}
+          {hospitals.map(h => (
+            <Marker
+              key={h.id}
+              coordinate={{ latitude: h.lat, longitude: h.lng }}
+              onPress={() => focusHospital(h)}
+            >
+              <View style={[
+                s.pin,
+                { backgroundColor: LEVEL_COLOR[h.level] },
+                selected?.id === h.id && s.pinSelected,
+              ]}>
+                <Text style={s.pinTxt}>{h.name}</Text>
+              </View>
+            </Marker>
+          ))}
+        </MapView>
+
+        {/* 내 위치 이동 버튼 */}
+        <TouchableOpacity 
+          style={[s.myLocationBtn, { backgroundColor: t.bgCard }]} 
+          onPress={moveToMyLocation}
+          activeOpacity={0.8}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color={t.primary || '#185FA5'} />
+          ) : (
+            <MaterialIcons name="my-location" size={24} color={t.primary || '#185FA5'} />
+          )}
+        </TouchableOpacity>
+
+        {/* 응급도 기준 범례 레이어 */}
+        <View style={[s.legend, { backgroundColor: t.bgCard }]}>
+          {Object.entries(LEVEL_COLOR).map(([k, c]) => (
+            <View key={k} style={s.legendItem}>
+              <View style={[s.dot, { backgroundColor: c }]} />
+              <Text style={[s.legendTxt, { color: t.text }]}>{LEVEL_LABEL[k]}</Text>
             </View>
-          </Marker>
-        ))}
-      </MapView>
-
-      {/* 응급도 기준 범례 레이어 */}
-      <View style={[s.legend, { backgroundColor: t.bgCard }]}>
-        {Object.entries(LEVEL_COLOR).map(([k, c]) => (
-          <View key={k} style={s.legendItem}>
-            <View style={[s.dot, { backgroundColor: c }]} />
-            <Text style={[s.legendTxt, { color: t.text }]}>{LEVEL_LABEL[k]}</Text>
-          </View>
-        ))}
+          ))}
+        </View>
       </View>
 
       {/* 하단 응급실 정보 상세 리스트 시트 */}
@@ -93,10 +241,16 @@ export default function MapScreen({ userId }) {
         showsVerticalScrollIndicator={false}
       >
         <Text style={[s.sectionTitle, { color: t.textSub }]}>선택된 병원</Text>
-        {selected && <HospitalCard hospital={selected} compact />}
+        {selected ? (
+          <HospitalCard hospital={selected} compact />
+        ) : (
+          <Text style={{ color: t.textSub, marginVertical: 10 }}>검색된 병원이 없습니다.</Text>
+        )}
 
-        <Text style={[s.sectionTitle, { color: t.textSub, marginTop: 8 }]}>주변 응급실 전체</Text>
-        {HOSPITALS.filter(h => h.id !== selected?.id).map(h => (
+        {hospitals.length > 0 && (
+          <Text style={[s.sectionTitle, { color: t.textSub, marginTop: 8 }]}>주변 응급실 전체</Text>
+        )}
+        {hospitals.filter(h => h.id !== selected?.id).map(h => (
           <TouchableOpacity
             key={h.id}
             onPress={() => focusHospital(h)}
@@ -105,7 +259,7 @@ export default function MapScreen({ userId }) {
           >
             <View style={[s.dot, { backgroundColor: LEVEL_COLOR[h.level] }]} />
             <Text style={[s.listName, { color: t.text }]}>{h.name}</Text>
-            <Text style={[s.listMeta, { color: t.textSub }]}>{h.dist} · {h.wait}분</Text>
+            <Text style={[s.listMeta, { color: t.textSub }]}>{h.dist}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -115,11 +269,23 @@ export default function MapScreen({ userId }) {
 
 const s = StyleSheet.create({
   container:   { flex: 1 },
-  map:         { height: 260 },
-  myDot:       {
-    width: 16, height: 16, borderRadius: 8,
-    backgroundColor: '#185FA5', borderWidth: 3, borderColor: '#fff',
-    shadowColor: '#185FA5', shadowOpacity: 0.5, shadowRadius: 6,
+  mapWrapper:  { height: 260, position: 'relative' },
+  map:         { flex: 1 },
+  myLocationBtn: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    zIndex: 10,
   },
   pin:         {
     paddingHorizontal: 9, paddingVertical: 4,
@@ -145,4 +311,9 @@ const s = StyleSheet.create({
   },
   listName:    { flex: 1, fontSize: 13 },
   listMeta:    { fontSize: 12 },
+  userMarker:  {
+    backgroundColor: '#185FA5', padding: 8, borderRadius: 20,
+    borderWidth: 2, borderColor: '#fff',
+    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, elevation: 5,
+  },
 });

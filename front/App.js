@@ -13,12 +13,14 @@ import GoldenScreen      from './src/screens/GoldenScreen';
 import ProfileScreen     from './src/screens/ProfileScreen';
 import LoginScreen       from './src/screens/LoginScreen';
 import SignUpScreen      from './src/screens/SignUpScreen';
+import SocialSignupScreen from './src/screens/SocialSignupScreen';
 import FindAccountScreen from './src/screens/FindAccountScreen';
 import { updateLocation } from './src/api/userApi';
+import { Ionicons } from '@expo/vector-icons';
 
 const USER_KEY = 'fivemin_user';
 
-// auth 상태: 'loading' | 'login' | 'signup' | 'find' | 'app'
+// auth 상태: 'loading' | 'login' | 'signup' | 'social_signup' | 'find' | 'app'
 function Main() {
   const { theme: t, isDark } = useTheme();
   const [auth, setAuth] = useState('loading');
@@ -31,12 +33,20 @@ function Main() {
       try {
         const saved = await AsyncStorage.getItem(USER_KEY);
         if (saved) {
-          setUser(JSON.parse(saved));
-          setAuth('app');
+          const userData = JSON.parse(saved);
+          console.log('[5MIN] Loaded saved user:', userData);
+          setUser(userData);
+          // 필수 정보(혈액형 등)가 없으면 정보 입력 화면으로 보냄
+          if (userData.infoCompleted) {
+            setAuth('app');
+          } else {
+            setAuth('social_signup');
+          }
         } else {
           setAuth('login');
         }
-      } catch {
+      } catch (err) {
+        console.error('[5MIN] Load user error:', err);
         setAuth('login');
       }
     })();
@@ -51,15 +61,24 @@ function Main() {
         if (status !== 'granted') return;
         const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         await updateLocation(user.id, pos.coords.latitude, pos.coords.longitude);
-      } catch {
-        // 위치 갱신 실패해도 앱 사용에는 지장 없음
+      } catch (err) {
+        console.error('[5MIN] Update location error:', err);
       }
     })();
   }, [auth, user?.id]);
 
   const saveUser = async (userData) => {
-    await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
-    setUser(userData);
+    try {
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
+      setUser(userData);
+      if (userData.infoCompleted) {
+        setAuth('app');
+      } else {
+        setAuth('social_signup');
+      }
+    } catch (err) {
+      console.error('[5MIN] Save user error:', err);
+    }
   };
 
   const handleLogout = async () => {
@@ -68,10 +87,9 @@ function Main() {
     setAuth('login');
   };
 
-  // 회원가입 완료 → 사용자 저장 → 앱 진입
-  const handleSignUpComplete = async (userData) => {
-    await saveUser(userData);
-    setAuth('app');
+  const handleLoginSuccess = (userData) => {
+    console.log('[5MIN] Login success, checking infoCompleted:', userData);
+    saveUser(userData);
   };
 
   /* ── 로딩 ── */
@@ -87,10 +105,14 @@ function Main() {
   if (auth === 'login') {
     return (
       <LoginScreen
-        onLogin={async () => {
-          // 소셜/이메일 로그인은 추후 구현 — 현재는 저장된 사용자로 진입
-          setAuth('app');
+        onLogin={(type) => {
+          if (type === 'email') {
+            // 이메일 로그인 화면이 따로 있다면 그리로 이동, 
+            // 여기서는 간단히 이메일 로그인이 성공했다고 가정하거나 추가 화면 필요
+            // 일단은 LoginScreen 내부에서 처리하도록 설계됨
+          }
         }}
+        onLoginSuccess={handleLoginSuccess}
         onSignUp={() => setAuth('signup')}
         onFindAccount={() => setAuth('find')}
       />
@@ -100,7 +122,15 @@ function Main() {
     return (
       <SignUpScreen
         onBack={() => setAuth('login')}
-        onComplete={handleSignUpComplete}
+        onComplete={handleLoginSuccess}
+      />
+    );
+  }
+  if (auth === 'social_signup') {
+    return (
+      <SocialSignupScreen
+        user={user}
+        onComplete={handleLoginSuccess}
       />
     );
   }
@@ -115,7 +145,7 @@ function Main() {
       case 'peds':    return <PedsScreen />;
       case 'map':     return <MapScreen userId={user?.id} />;
       case 'golden':  return <GoldenScreen />;
-      case 'profile': return <ProfileScreen onLogout={handleLogout} user={user} />;
+      case 'profile': return <ProfileScreen onLogout={handleLogout} user={user} onUpdateUser={handleLoginSuccess} />;
       default:        return <MapScreen userId={user?.id} />;
     }
   };
@@ -130,7 +160,10 @@ function Main() {
         backgroundColor={t.headerBg}
       />
       <View style={[s.header, { backgroundColor: t.headerBg }]}>
-        <Text style={[s.headerTitle, { color: t.headerText }]}>🚑 응급실 안내</Text>
+        <View style={s.headerRow}>
+          <Ionicons name="medical" size={18} color="#E24B4A" />
+          <Text style={[s.headerTitle, { color: t.headerText }]}>응급실 안내</Text>
+        </View>
         <Text style={[s.headerSub,  { color: t.headerText }]}>
           {user?.name ? `${user.name}님` : '현재 위치'}
         </Text>
@@ -157,6 +190,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
+  headerRow:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headerTitle: { fontSize: 16, fontWeight: '700' },
   headerSub:   { fontSize: 12, opacity: 0.85 },
   content:     { flex: 1 },
