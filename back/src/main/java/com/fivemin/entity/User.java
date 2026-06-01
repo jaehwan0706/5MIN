@@ -18,7 +18,7 @@ public class User {
     private Long id;
 
     // 사용자 이름
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false)    
     private String name;
 
     // 로그인 이메일 (unique)
@@ -34,7 +34,7 @@ public class User {
     private String phone;
 
     // 로그인 제공자 (LOCAL, KAKAO, GOOGLE)
-    @Column(name = "provider", nullable = false)
+    @Column(name = "provider", nullable = false, length = 20)
     private String provider = "LOCAL";
 
     // 소셜 로그인 고유 ID
@@ -61,14 +61,6 @@ public class User {
     @Column(name = "alert_enabled")
     private Boolean alertEnabled = true;
 
-    // 소셜 로그인 제공자 (local | kakao | google), 기본값 local
-    @Column(name = "provider", length = 20)
-    private String provider = "local";
-
-    // 소셜 로그인 제공자 ID
-    @Column(name = "provider_id")
-    private String providerId;
-
     // 혈액형
     @Column(name = "blood_type")
     private String bloodType;
@@ -79,7 +71,7 @@ public class User {
 
     // 긴급 연락처
     @Column(name = "emergency_cont", columnDefinition = "TEXT")
-    private String emergencyCont;
+    private String emergencyContact;
 
     // 정보 입력 완료 여부, 기본값 false
     @Column(name = "info_completed")

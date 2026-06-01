@@ -116,7 +116,7 @@ public class UserController {
         map.put("emergencyContact", user.getEmergencyContact());
         map.put("carInfo", user.getCarInfo());
         map.put("medications", user.getMedications());
-        map.put("infoCompleted", user.isInfoCompleted());
+        map.put("infoCompleted", user.getInfoCompleted());
         if (message != null) map.put("message", message);
         return map;
     }

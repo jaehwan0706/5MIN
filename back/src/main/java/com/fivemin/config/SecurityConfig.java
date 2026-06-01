@@ -30,13 +30,13 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             // 요청별 권한 설정
             .authorizeHttpRequests(auth -> auth
-                // 회원가입, 로그인은 토큰 없이 접근 가능
-                .requestMatchers("/api/auth/**").permitAll()
-                // 병원 목록 조회는 토큰 없이 접근 가능
-                .requestMatchers("/api/hospitals/**").permitAll()
-                // 골든타임 증상 목록은 토큰 없이 접근 가능
-                .requestMatchers("/api/symptoms/**").permitAll()
-                // 나머지는 토큰 필요
+                .requestMatchers(
+                    "/api/auth/**",
+                    "/api/user/**",
+                    "/api/hospital/**",
+                    "/api/emergency/**",
+                    "/api/symptoms/**"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
             // JwtFilter를 Security 필터 앞에 추가
