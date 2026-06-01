@@ -55,6 +55,12 @@ public class User {
     @Column(name = "emergency_contact")
     private String emergencyContact; // 보호자 연락처
 
+    @Column(name = "car_info")
+    private String carInfo; // 차량 정보 (차량번호, 보험사 등)
+
+    @Column(name = "medications")
+    private String medications; // 복용 중인 약
+
     @Column(name = "info_completed", nullable = false)
     private boolean infoCompleted = false; // 필수 정보 입력 여부
 

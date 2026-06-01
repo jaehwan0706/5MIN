@@ -41,9 +41,9 @@ export function updateLocation(userId, latitude, longitude) {
 }
 
 // 사용자 의료 정보 갱신
-export function updateMedicalInfo(userId, bloodType, chronicDisease, emergencyContact) {
+export function updateMedicalInfo(userId, bloodType, chronicDisease, emergencyContact, carInfo, medications) {
   return apiFetch(`/api/user/medical/${userId}`, {
     method: 'PUT',
-    body: JSON.stringify({ bloodType, chronicDisease, emergencyContact }),
+    body: JSON.stringify({ bloodType, chronicDisease, emergencyContact, carInfo, medications }),
   });
 }

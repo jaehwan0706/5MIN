@@ -145,7 +145,7 @@ function Main() {
       case 'peds':    return <PedsScreen />;
       case 'map':     return <MapScreen userId={user?.id} />;
       case 'golden':  return <GoldenScreen />;
-      case 'profile': return <ProfileScreen onLogout={handleLogout} user={user} />;
+      case 'profile': return <ProfileScreen onLogout={handleLogout} user={user} onUpdateUser={handleLoginSuccess} />;
       default:        return <MapScreen userId={user?.id} />;
     }
   };

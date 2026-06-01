@@ -155,12 +155,15 @@ public class UserService {
 
     // 의료 정보 업데이트 및 필수 정보 입력 완료 처리
     @Transactional
-    public User updateMedicalInfo(Long userId, String bloodType, String chronicDisease, String emergencyContact) {
+    public User updateMedicalInfo(Long userId, String bloodType, String chronicDisease, 
+                                 String emergencyContact, String carInfo, String medications) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
         user.setBloodType(bloodType);
         user.setChronicDisease(chronicDisease);
         user.setEmergencyContact(emergencyContact);
+        user.setCarInfo(carInfo);
+        user.setMedications(medications);
         user.setInfoCompleted(true); // 입력 완료 설정
         return userRepository.save(user);
     }
