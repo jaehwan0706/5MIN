@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Dimensions, StatusBar, Alert,
@@ -55,11 +55,12 @@ function FiveMinLogo({ size = 160 }) {
 
 export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginSuccess }) {
   
-  // 고정된 Redirect URI 생성
-  const redirectUri = useMemo(() => AuthSession.makeRedirectUri({ useProxy: true }), []);
+  // 카카오 개발자 센터에 등록한 주소로 완전히 고정
+  const redirectUri = 'https://auth.expo.io/@anonymous/5min';
+
   useEffect(() => {
-    console.log('[5MIN] Generated Redirect URI:', redirectUri);
-  }, [redirectUri]);
+    console.log('[5MIN] ★카카오 등록 주소 강제 적용★:', redirectUri);
+  }, []);
 
   // --- 구글 로그인 설정 ---
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
@@ -93,6 +94,11 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
   };
 
   // --- 카카오 로그인 설정 ---
+  const discovery = {
+    authorizationEndpoint: 'https://kauth.kakao.com/oauth/authorize',
+    tokenEndpoint: 'https://kauth.kakao.com/oauth/token',
+  };
+
   const [kakaoRequest, kakaoResponse, kakaoPromptAsync] = AuthSession.useAuthRequest(
     {
       clientId: KAKAO_REST_API_KEY,
@@ -100,10 +106,7 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
       scopes: ['account_email', 'profile_nickname'],
       responseType: AuthSession.ResponseType.Code,
     },
-    {
-      authorizationEndpoint: 'https://kauth.kakao.com/oauth/authorize',
-      tokenEndpoint: 'https://kauth.kakao.com/oauth/token',
-    }
+    discovery
   );
 
   useEffect(() => {
@@ -124,10 +127,6 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
     }
   };
 
-  useEffect(() => {
-    console.log('[5MIN] Current Redirect URI:', redirectUri);
-  }, [redirectUri]);
-
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" />
@@ -140,7 +139,7 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
         <View style={s.btnArea}>
           <TouchableOpacity
             style={s.kakaoBtn}
-            onPress={() => kakaoPromptAsync()}
+            onPress={() => kakaoPromptAsync({ useProxy: true })}
             activeOpacity={0.85}
             disabled={!kakaoRequest}
           >
@@ -153,7 +152,7 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
           </TouchableOpacity>
           <TouchableOpacity
             style={s.googleBtn}
-            onPress={() => googlePromptAsync()}
+            onPress={() => googlePromptAsync({ useProxy: true })}
             activeOpacity={0.85}
             disabled={!googleRequest}
           >
