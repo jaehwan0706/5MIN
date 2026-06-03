@@ -30,6 +30,28 @@ function deg2rad(deg) {
   return deg * (Math.PI / 180);
 }
 
+// 직선거리 기반 차량 이동 시간 추정 (도로계수 1.3, 평균 30km/h)
+function estimateDriveMinutes(distKm) {
+  return Math.max(1, Math.round(parseFloat(distKm) * 1.3 / 30 * 60));
+}
+
+// OSRM 무료 라우팅 API로 실제 도로 기준 이동 시간 조회 (3초 타임아웃)
+async function fetchOsrmMinutes(fromLat, fromLng, toLat, toLng) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=false`;
+    const res  = await fetch(url, { signal: controller.signal });
+    const data = await res.json();
+    if (data.code === 'Ok' && data.routes?.[0]) {
+      return Math.max(1, Math.round(data.routes[0].duration / 60));
+    }
+  } catch { /* timeout or network — fall back to estimate */ } finally {
+    clearTimeout(timer);
+  }
+  return null;
+}
+
 export default function MapScreen({ userId }) {
   const { theme: t } = useTheme();
   const [hospitals, setHospitals] = useState([]);
@@ -40,8 +62,8 @@ export default function MapScreen({ userId }) {
 
   const loadHospitals = async (lat, lng) => {
     try {
-      // 1. 내 주변 병원 DB에서 조회 (반경 10km, 최대 30개)
-      const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 10, 30);
+      // 1. 내 주변 병원 DB에서 조회 (반경 30km, 최대 50개)
+      const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 30, 50);
       
       // 2. 현재 내 위치의 시/도 파악하여 실시간 API 조회
       const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
@@ -78,11 +100,12 @@ export default function MapScreen({ userId }) {
           else level = 'green';
         }
 
+        const distKm = parseFloat(getDistanceFromLatLonInKm(lat, lng, dbHosp.wgs84Lat, dbHosp.wgs84Lon));
         return {
           id: dbHosp.hpid,
           name: dbHosp.dutyName,
-          dist: getDistanceFromLatLonInKm(lat, lng, dbHosp.wgs84Lat, dbHosp.wgs84Lon) + 'km',
-          wait: rTime ? '-' : '정보없음', // 실시간 대기시간이 없으면 기본값
+          dist: distKm + 'km',
+          wait: estimateDriveMinutes(distKm),
           beds: bedsCount,
           tel: dbHosp.dutyTel1,
           lat: dbHosp.wgs84Lat,
@@ -145,7 +168,7 @@ export default function MapScreen({ userId }) {
     moveToMyLocation();
   }, []);
 
-  const focusHospital = h => {
+  const focusHospital = async (h) => {
     setSelected(h);
     if (mapRef.current?.animateToRegion) {
       mapRef.current.animateToRegion({
@@ -154,6 +177,15 @@ export default function MapScreen({ userId }) {
         latitudeDelta:  0.01,
         longitudeDelta: 0.01,
       }, 400);
+    }
+    // 선택된 병원에 대해 실제 도로 이동 시간 조회 후 업데이트
+    if (myLocation) {
+      const mins = await fetchOsrmMinutes(
+        myLocation.latitude, myLocation.longitude, h.lat, h.lng
+      );
+      if (mins !== null) {
+        setSelected(prev => prev?.id === h.id ? { ...prev, wait: mins } : prev);
+      }
     }
   };
 

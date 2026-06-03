@@ -16,6 +16,8 @@ google:
     secret: ${GOOGLE_CLIENT_SECRET}
 
 spring:
+  profiles:
+    active: local
   datasource:
     url: jdbc:mysql://fivemin-db.clgowq824mdk.ap-northeast-2.rds.amazonaws.com:3306/fivemin?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
     username: admin

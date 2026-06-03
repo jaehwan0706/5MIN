@@ -4,7 +4,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { LEVEL_COLOR, LEVEL_BG, LEVEL_LABEL } from '../constants/hospitals';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function HospitalCard({ hospital: h, compact = false }) {
+export default function HospitalCard({ hospital: h, compact = false, onToggleFav }) {
   const { theme: t } = useTheme();
 
   const call = () => {
@@ -27,13 +27,24 @@ export default function HospitalCard({ hospital: h, compact = false }) {
       <View style={s.row}>
         <View style={s.info}>
           <View style={s.nameRow}>
-            <Text style={[s.name, { color: t.text }]}>{h.name}</Text>
+            <Text style={[s.name, { color: t.text }]} numberOfLines={1}>{h.name}</Text>
             {h.moonBadge && (
               <View style={s.moonBadge}>
                 <Text style={s.moonBadgeTxt}>달빛어린이</Text>
               </View>
             )}
-            {h.fav && <Ionicons name="star" size={14} color="#FFB000" />}
+            {onToggleFav && (
+              <TouchableOpacity
+                onPress={() => onToggleFav(h.id)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons
+                  name={h.fav ? 'star' : 'star-outline'}
+                  size={16}
+                  color={h.fav ? '#FFB000' : '#CCCCCC'}
+                />
+              </TouchableOpacity>
+            )}
           </View>
           <View style={s.metaRow}>
             <View style={s.metaItem}>
@@ -41,8 +52,8 @@ export default function HospitalCard({ hospital: h, compact = false }) {
               <Text style={[s.meta, { color: t.textSub }]}>{h.dist}</Text>
             </View>
             <View style={s.metaItem}>
-              <Ionicons name="time-outline" size={12} color={t.textSub} />
-              <Text style={[s.meta, { color: t.textSub }]}>{h.wait}분</Text>
+              <Ionicons name="car-outline" size={12} color={t.textSub} />
+              <Text style={[s.meta, { color: t.textSub }]}>약 {h.wait}분</Text>
             </View>
             <View style={s.metaItem}>
               <Ionicons name="bed-outline" size={12} color={t.textSub} />

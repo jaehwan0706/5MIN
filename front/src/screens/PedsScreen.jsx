@@ -26,8 +26,8 @@ export default function PedsScreen() {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const { latitude: lat, longitude: lng } = pos.coords;
 
-      // 1. 내 주변 병원 DB 조회 (반경 3km)
-      const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 3, 30);
+      // 1. 내 주변 병원 DB 조회 (반경 20km)
+      const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 20, 50);
       
       // 2. 소아 응급실 실시간 정보 조회
       const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
