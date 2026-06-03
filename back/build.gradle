@@ -23,6 +23,7 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
 	// JPA + MySQL
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	runtimeOnly 'com.mysql:mysql-connector-j'
@@ -32,6 +33,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	// 비밀번호 BCrypt 해싱 (Spring Security 없이 crypto만)
 	implementation 'org.springframework.security:spring-security-crypto'
+	// JWT 토큰
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 }
 
 tasks.withType(JavaCompile) {

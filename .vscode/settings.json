@@ -1,3 +1,19 @@
 {
-    "git.ignoreLimitWarning": true
+    "git.ignoreLimitWarning": true,
+    "sqltools.connections": [
+        {
+            "mysqlOptions": {
+                "authProtocol": "default",
+                "enableSsl": "Disabled"
+            },
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "fivemin-db.clgowq824mdk.ap-northeast-2.rds.amazonaws.com",
+            "port": 3306,
+            "driver": "MySQL",
+            "name": "fivemin",
+            "database": "fivemin",
+            "username": "admin"
+        }
+    ]
 }

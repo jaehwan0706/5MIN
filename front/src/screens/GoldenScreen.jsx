@@ -72,28 +72,6 @@ export default function GoldenScreen() {
         </View>
       )}
 
-      {/* 메디컬 ID 바코드 */}
-      <View style={[s.barcodeCard, { backgroundColor: t.bgSecondary, borderColor: t.border }]}>
-        <View style={s.barcodeHeader}>
-          <Ionicons name="id-card-outline" size={18} color={t.text} />
-          <Text style={[s.barcodeTitle, { color: t.text }]}>메디컬 ID 바코드</Text>
-        </View>
-        <View style={s.barcodeStripes}>
-          {Array.from({ length: 36 }, (_, i) => (
-            <View
-              key={i}
-              style={[
-                s.stripe,
-                { height: [3,5,2,4,3,6,2,4,3,5,2,3,4,5,2,3,6,2,4,3,5,2,4,3,2,5,3,4,2,6,3,2,5,4,3,2][i] * 6 },
-                { backgroundColor: t.text },
-              ]}
-            />
-          ))}
-        </View>
-        <Text style={[s.barcodeDesc, { color: t.textSub }]}>
-          응급대원에게 스캔 — 혈액형·알레르기·지병 즉시 확인
-        </Text>
-      </View>
     </ScrollView>
   );
 }
@@ -117,10 +95,4 @@ const s = StyleSheet.create({
   guideTxt:     { fontSize: 14, lineHeight: 22 },
   warnFooter:   { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 10, borderTopWidth: 0.5, borderTopColor: '#eee', backgroundColor: '#fffafb' },
   warnFooterTxt:{ fontSize: 11, color: '#791F1F', fontWeight: '500' },
-  barcodeCard:  { borderRadius: 12, borderWidth: 0.5, padding: 14 },
-  barcodeHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  barcodeTitle: { fontSize: 13, fontWeight: '600' },
-  barcodeStripes:{ flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 8 },
-  stripe:       { width: 5, borderRadius: 1 },
-  barcodeDesc:  { fontSize: 11, textAlign: 'center' },
 });

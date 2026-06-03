@@ -40,8 +40,8 @@ export default function MapScreen({ userId }) {
 
   const loadHospitals = async (lat, lng) => {
     try {
-      // 1. 내 주변 병원 DB에서 조회 (반경 5km, 최대 20개)
-      const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 5, 20);
+      // 1. 내 주변 병원 DB에서 조회 (반경 10km, 최대 30개)
+      const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 10, 30);
       
       // 2. 현재 내 위치의 시/도 파악하여 실시간 API 조회
       const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
@@ -126,8 +126,8 @@ export default function MapScreen({ userId }) {
       setMyLocation(coords);
       mapRef.current?.animateToRegion({
         ...coords,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
+        latitudeDelta: 0.07,
+        longitudeDelta: 0.07,
       }, 600);
 
       // 위치 기반 병원 정보 로드
@@ -169,7 +169,7 @@ export default function MapScreen({ userId }) {
           showsUserLocation={false} // 커스텀 마커를 사용하므로 끔
           showsMyLocationButton={false}
         >
-          {/* 내 위치 커스텀 마커 및 1km 반경 원 */}
+          {/* 내 위치 커스텀 마커 및 3km 반경 원 */}
           {myLocation && (
             <>
               <Marker
@@ -183,8 +183,8 @@ export default function MapScreen({ userId }) {
               </Marker>
               <Circle
                 center={myLocation}
-                radius={1000} // 1km
-                fillColor="rgba(135, 206, 235, 0.3)" // 연한 하늘색 반투명
+                radius={3000} // 3km
+                fillColor="rgba(135, 206, 235, 0.2)"
                 strokeColor="rgba(135, 206, 235, 0.6)"
                 strokeWidth={2}
                 zIndex={15}

@@ -48,8 +48,8 @@ export default function ListScreen() {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const { latitude: lat, longitude: lng } = pos.coords;
 
-      // 1. 내 주변 병원 DB 조회
-      const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 10, 30);
+      // 1. 내 주변 병원 DB 조회 (전체: 반경 30km, 최대 50개)
+      const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 30, 50);
       
       // 2. 실시간 병상 정보 조회용 지역 파악
       const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });

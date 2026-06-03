@@ -17,20 +17,24 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "name", nullable = false)
+    // 사용자 이름
+    @Column(name = "name", nullable = false)    
     private String name;
 
+    // 로그인 이메일 (unique)
     @Column(name = "email", nullable = false, unique = true)
     private String email;
 
-    @Column(name = "password") // 소셜 로그인의 경우 비밀번호가 없을 수 있으므로 nullable=true (기본값)
+    // BCrypt 암호화된 비밀번호
+    @Column(name = "password", nullable = false)
     private String password;
 
+    // 전화번호
     @Column(name = "phone")
     private String phone;
 
     // 로그인 제공자 (LOCAL, KAKAO, GOOGLE)
-    @Column(name = "provider", nullable = false)
+    @Column(name = "provider", nullable = false, length = 20)
     private String provider = "LOCAL";
 
     // 소셜 로그인 고유 ID
@@ -45,25 +49,60 @@ public class User {
     @Column(name = "longitude")
     private Double longitude;
 
-    // 추가 의료 정보 및 연동 상태
+    // 권한 (user | admin), 기본값 user
+    @Column(name = "role", length = 10)
+    private String role = "user";
+
+    // 다크모드 설정, 기본값 false
+    @Column(name = "dark_mode")
+    private Boolean darkMode = false;
+
+    // 응급실 혼잡 알림 설정, 기본값 true
+    @Column(name = "alert_enabled")
+    private Boolean alertEnabled = true;
+
+    // 혈액형
     @Column(name = "blood_type")
-    private String bloodType; // 혈액형 (A, B, O, AB / Rh+, Rh-)
+    private String bloodType;
 
-    @Column(name = "chronic_disease")
-    private String chronicDisease; // 지병/특이사항
+    // 지병
+    @Column(name = "chronic_disease", columnDefinition = "TEXT")
+    private String chronicDisease;
 
-    @Column(name = "emergency_contact")
-    private String emergencyContact; // 보호자 연락처
+    // 긴급 연락처
+    @Column(name = "emergency_cont", columnDefinition = "TEXT")
+    private String emergencyContact;
 
+    // 정보 입력 완료 여부, 기본값 false
+    @Column(name = "info_completed")
+    private Boolean infoCompleted = false;
+
+    // 차량 정보
     @Column(name = "car_info")
-    private String carInfo; // 차량 정보 (차량번호, 보험사 등)
+    private String carInfo;
 
+    // 복용 중인 약
     @Column(name = "medications")
-    private String medications; // 복용 중인 약
+    private String medications;
 
-    @Column(name = "info_completed", nullable = false)
-    private boolean infoCompleted = false; // 필수 정보 입력 여부
-
+    // 계정 생성일
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    // 계정 수정일
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    // 저장 전 자동으로 생성일 세팅
+    @PrePersist
+    public void prePersist() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    // 수정 전 자동으로 수정일 업데이트
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 }

@@ -163,11 +163,47 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
           </View>
           <TouchableOpacity
             style={s.loginBtn}
-            onPress={() => onLogin('email')}
+            onPress={() => {
+              setEmailMode(v => !v);
+              onLogin?.('email');
+            }}
             activeOpacity={0.85}
           >
             <Text style={s.loginTxt}>이메일로 로그인</Text>
           </TouchableOpacity>
+          {emailMode && (
+            <View style={s.emailBox}>
+              <TextInput
+                style={s.input}
+                placeholder="example@email.com"
+                placeholderTextColor="#BBBBBB"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TextInput
+                style={s.input}
+                placeholder="비밀번호"
+                placeholderTextColor="#BBBBBB"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={[s.emailSubmitBtn, emailLoading && { opacity: 0.7 }]}
+                onPress={handleEmailLogin}
+                activeOpacity={0.85}
+                disabled={emailLoading}
+              >
+                {emailLoading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={s.emailSubmitTxt}>로그인</Text>}
+              </TouchableOpacity>
+            </View>
+          )}
           <View style={s.links}>
             <TouchableOpacity onPress={onSignUp} activeOpacity={0.7}>
               <Text style={s.linkTxt}>회원가입</Text>
@@ -212,6 +248,17 @@ const s = StyleSheet.create({
     shadowColor: '#E24B4A', shadowOpacity: 0.3, shadowRadius: 6, elevation: 3,
   },
   loginTxt:  { fontSize: 15, fontWeight: '700', color: '#fff' },
+  emailBox:  { gap: 10, marginTop: 2 },
+  input:     {
+    backgroundColor: '#fff', borderRadius: 10, borderWidth: 1,
+    borderColor: '#E0E0E0', paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 15, color: '#1A1A1A',
+  },
+  emailSubmitBtn: {
+    backgroundColor: '#333', borderRadius: 10, paddingVertical: 13,
+    alignItems: 'center',
+  },
+  emailSubmitTxt: { fontSize: 15, fontWeight: '700', color: '#fff' },
   links:     { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 4 },
   linkTxt:   { fontSize: 13, color: '#888' },
   linkDot:   { fontSize: 13, color: '#ccc' },
