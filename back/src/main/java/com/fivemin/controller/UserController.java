@@ -2,6 +2,8 @@ package com.fivemin.controller;
 
 import com.fivemin.entity.User;
 import com.fivemin.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -9,9 +11,15 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+
+import org.json.JSONObject;
 
 // 사용자 회원가입/로그인/위치 업데이트 API
 @RestController
@@ -68,6 +76,71 @@ public class UserController {
             Map<String, Object> error = new LinkedHashMap<>();
             error.put("error", "카카오 로그인 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.status(500).body(error);
+        }
+    }
+
+    // 카카오 OAuth 콜백 — Expo Go(exp://) 로 결과를 중계한다
+    @GetMapping("/kakao/oauth-callback")
+    public void kakaoOAuthCallback(
+            @RequestParam("code") String code,
+            @RequestParam(name = "state", required = false) String state,
+            HttpServletRequest httpReq,
+            HttpServletResponse response) throws IOException {
+
+        // state 에 담긴 returnUrl / callbackUrl 파싱
+        String returnUrl = "exp://localhost:8081";
+        String callbackUrl = httpReq.getScheme() + "://" + httpReq.getServerName()
+                + ":" + httpReq.getServerPort() + "/api/user/kakao/oauth-callback";
+
+        if (state != null) {
+            try {
+                String decoded = new String(Base64.getDecoder().decode(state), StandardCharsets.UTF_8);
+                JSONObject stateJson = new JSONObject(decoded);
+                returnUrl  = stateJson.optString("returnUrl",  returnUrl);
+                callbackUrl = stateJson.optString("callbackUrl", callbackUrl);
+            } catch (Exception ignored) { }
+        }
+
+        try {
+            User user = userService.loginWithKakao(code, callbackUrl);
+            Map<String, Object> userMap = toUserResponse(user, null);
+            String userJson = URLEncoder.encode(new JSONObject(userMap).toString(), StandardCharsets.UTF_8);
+            response.sendRedirect(returnUrl + "?user=" + userJson);
+        } catch (Exception e) {
+            String errorMsg = URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8);
+            response.sendRedirect(returnUrl + "?error=" + errorMsg);
+        }
+    }
+
+    // 구글 OAuth 콜백 — Expo Go(exp://) 로 결과를 중계한다
+    @GetMapping("/google/oauth-callback")
+    public void googleOAuthCallback(
+            @RequestParam("code") String code,
+            @RequestParam(name = "state", required = false) String state,
+            HttpServletRequest httpReq,
+            HttpServletResponse response) throws IOException {
+
+        String returnUrl = "exp://localhost:8081";
+        String callbackUrl = httpReq.getScheme() + "://" + httpReq.getServerName()
+                + ":" + httpReq.getServerPort() + "/api/user/google/oauth-callback";
+
+        if (state != null) {
+            try {
+                String decoded = new String(Base64.getDecoder().decode(state), StandardCharsets.UTF_8);
+                JSONObject stateJson = new JSONObject(decoded);
+                returnUrl  = stateJson.optString("returnUrl",  returnUrl);
+                callbackUrl = stateJson.optString("callbackUrl", callbackUrl);
+            } catch (Exception ignored) { }
+        }
+
+        try {
+            User user = userService.loginWithGoogle(code, callbackUrl);
+            Map<String, Object> userMap = toUserResponse(user, null);
+            String userJson = URLEncoder.encode(new JSONObject(userMap).toString(), StandardCharsets.UTF_8);
+            response.sendRedirect(returnUrl + "?user=" + userJson);
+        } catch (Exception e) {
+            String errorMsg = URLEncoder.encode(e.getMessage(), StandardCharsets.UTF_8);
+            response.sendRedirect(returnUrl + "?error=" + errorMsg);
         }
     }
 

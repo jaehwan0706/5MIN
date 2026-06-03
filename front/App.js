@@ -12,6 +12,7 @@ import PedsScreen        from './src/screens/PedsScreen';
 import GoldenScreen      from './src/screens/GoldenScreen';
 import ProfileScreen     from './src/screens/ProfileScreen';
 import LoginScreen       from './src/screens/LoginScreen';
+import EmailLoginScreen  from './src/screens/EmailLoginScreen';
 import SignUpScreen      from './src/screens/SignUpScreen';
 import SocialSignupScreen from './src/screens/SocialSignupScreen';
 import FindAccountScreen from './src/screens/FindAccountScreen';
@@ -20,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 const USER_KEY = 'fivemin_user';
 
-// auth 상태: 'loading' | 'login' | 'signup' | 'social_signup' | 'find' | 'app'
+// auth 상태: 'loading' | 'login' | 'email_login' | 'signup' | 'social_signup' | 'find' | 'app'
 function Main() {
   const { theme: t, isDark } = useTheme();
   const [auth, setAuth] = useState('loading');
@@ -105,16 +106,19 @@ function Main() {
   if (auth === 'login') {
     return (
       <LoginScreen
-        onLogin={(type) => {
-          if (type === 'email') {
-            // 이메일 로그인 화면이 따로 있다면 그리로 이동, 
-            // 여기서는 간단히 이메일 로그인이 성공했다고 가정하거나 추가 화면 필요
-            // 일단은 LoginScreen 내부에서 처리하도록 설계됨
-          }
-        }}
+        onLogin={(type) => { if (type === 'email') setAuth('email_login'); }}
         onLoginSuccess={handleLoginSuccess}
         onSignUp={() => setAuth('signup')}
         onFindAccount={() => setAuth('find')}
+      />
+    );
+  }
+  if (auth === 'email_login') {
+    return (
+      <EmailLoginScreen
+        onBack={() => setAuth('login')}
+        onLoginSuccess={handleLoginSuccess}
+        onSignUp={() => setAuth('signup')}
       />
     );
   }

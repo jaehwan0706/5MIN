@@ -6,6 +6,7 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
@@ -27,6 +28,12 @@ public class UserService {
 
     @Value("${kakao.rest.secret}")
     private String kakaoRestSecret;
+
+    @Value("${google.client.id}")
+    private String googleClientId;
+
+    @Value("${google.client.secret}")
+    private String googleClientSecret;
 
     public UserService(UserRepository userRepository, RestTemplate restTemplate) {
         this.userRepository = userRepository;
@@ -81,6 +88,50 @@ public class UserService {
             throw new RuntimeException("카카오 서버 오류: " + e.getResponseBodyAsString(), e);
         } catch (Exception e) {
             throw new RuntimeException("카카오 로그인 처리 중 오류 발생: " + e.getMessage(), e);
+        }
+    }
+
+    // 구글 인가 코드로 토큰 발급 및 사용자 정보 조회 후 로그인 처리
+    @Transactional
+    public User loginWithGoogle(String code, String redirectUri) {
+        try {
+            // 1. 토큰 발급
+            String tokenUrl = "https://oauth2.googleapis.com/token";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("grant_type", "authorization_code");
+            params.add("client_id", googleClientId);
+            params.add("client_secret", googleClientSecret);
+            params.add("redirect_uri", redirectUri);
+            params.add("code", code);
+
+            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(params, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(tokenUrl, request, String.class);
+
+            JSONObject tokenJson = new JSONObject(response.getBody());
+            String accessToken = tokenJson.getString("access_token");
+
+            // 2. 사용자 정보 조회
+            String userUrl = "https://www.googleapis.com/userinfo/v2/me";
+            HttpHeaders userHeaders = new HttpHeaders();
+            userHeaders.setBearerAuth(accessToken);
+
+            HttpEntity<Void> userRequest = new HttpEntity<>(userHeaders);
+            ResponseEntity<String> userResponse = restTemplate.exchange(userUrl, HttpMethod.GET, userRequest, String.class);
+
+            JSONObject userJson = new JSONObject(userResponse.getBody());
+            String providerId = userJson.getString("id");
+            String email = userJson.optString("email", providerId + "@google.com");
+            String name = userJson.optString("name", "구글 사용자");
+
+            return processSocialLogin("GOOGLE", providerId, email, name);
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            System.err.println("[5MIN] Google API Error: " + e.getResponseBodyAsString());
+            throw new RuntimeException("구글 서버 오류: " + e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            throw new RuntimeException("구글 로그인 처리 중 오류 발생: " + e.getMessage(), e);
         }
     }
 

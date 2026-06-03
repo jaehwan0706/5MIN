@@ -1,21 +1,34 @@
-import React, { useEffect, useMemo } from 'react';
+import React from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  Dimensions, StatusBar, Alert,
+  Dimensions, StatusBar, Alert, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Circle, Path, Ellipse, Rect, G, Defs, RadialGradient, Stop, LinearGradient } from 'react-native-svg';
+import Svg, { Circle, Path, Ellipse, Rect, Defs, RadialGradient, Stop, LinearGradient } from 'react-native-svg';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-import * as AuthSession from 'expo-auth-session';
 
-import { socialLogin, kakaoLogin } from '../api/userApi';
+import { socialLogin } from '../api/userApi';
+import { BASE_URL } from '../api/client';
 
 WebBrowser.maybeCompleteAuthSession();
 
 const { width } = Dimensions.get('window');
 
 const KAKAO_REST_API_KEY = '6f1d69aede1067d118624fc26d3deee1';
+const GOOGLE_CLIENT_ID = '612745898680-79ji2g4q9vv68888dvquaqm9du6vk362.apps.googleusercontent.com';
+
+const KAKAO_CALLBACK_PATH = '/api/user/kakao/oauth-callback';
+
+// Google은 IP redirect URI를 거부 → ngrok 정적 도메인 사용
+// ngrok 세팅: https://ngrok.com → 무료 가입 → Domains → 고정 도메인 발급
+// 실행 명령: ngrok http 8080 --domain=YOUR-DOMAIN.ngrok-free.app
+const GOOGLE_CALLBACK_URL = 'https://YOUR-DOMAIN.ngrok-free.app/api/user/google/oauth-callback';
+
+// BASE_URL(http://IP:8080)에서 IP를 뽑아 Expo Go deep link 주소 생성
+const getExpUrl = () => {
+  const ip = BASE_URL.replace(/^https?:\/\//, '').split(':')[0];
+  return `exp://${ip}:8081`;
+};
 
 /* ── 5분 로고 SVG ── */
 function FiveMinLogo({ size = 160 }) {
@@ -54,79 +67,59 @@ function FiveMinLogo({ size = 160 }) {
 }
 
 export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginSuccess }) {
-  
-  // 고정된 Redirect URI 생성
-  const redirectUri = useMemo(() => AuthSession.makeRedirectUri({ useProxy: true }), []);
-  useEffect(() => {
-    console.log('[5MIN] Generated Redirect URI:', redirectUri);
-  }, [redirectUri]);
 
-  // --- 구글 로그인 설정 ---
-  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
-    iosClientId: '612745898680-79ji2g4q9vv68888dvquaqm9du6vk362.apps.googleusercontent.com',
-    androidClientId: '612745898680-79ji2g4q9vv68888dvquaqm9du6vk362.apps.googleusercontent.com',
-    webClientId: '612745898680-79ji2g4q9vv68888dvquaqm9du6vk362.apps.googleusercontent.com',
-    redirectUri: redirectUri,
-  });
-
-  useEffect(() => {
-    if (googleResponse?.type === 'success') {
-      const { authentication } = googleResponse;
-      handleGoogleLogin(authentication.accessToken);
+  // --- 소셜 OAuth 공통 처리 (백엔드 중계 → exp:// deep link) ---
+  const openOAuthSession = async (authUrl, callbackUrl) => {
+    if (Platform.OS === 'web') {
+      Alert.alert('안내', '웹에서는 소셜 로그인을 지원하지 않습니다.');
+      return;
     }
-  }, [googleResponse]);
+    const expUrl = getExpUrl();
+    const state  = btoa(JSON.stringify({ returnUrl: expUrl, callbackUrl }));
+    const fullUrl = authUrl + `&state=${state}&redirect_uri=${encodeURIComponent(callbackUrl)}`;
 
-  const handleGoogleLogin = async (token) => {
+    const result = await WebBrowser.openAuthSessionAsync(fullUrl, expUrl);
+    if (result.type !== 'success' || !result.url) return;
+
+    const query  = result.url.includes('?') ? result.url.split('?')[1] : '';
+    const params = new URLSearchParams(query);
+    const errorMsg = params.get('error');
+    const userJson = params.get('user');
+
+    if (errorMsg) { Alert.alert('로그인 오류', decodeURIComponent(errorMsg)); return; }
+    if (userJson)  { onLoginSuccess(JSON.parse(decodeURIComponent(userJson))); }
+  };
+
+  // --- 구글 로그인 (백엔드가 중계, localhost → ADB: adb reverse tcp:8080 tcp:8080) ---
+  const handleGoogleLogin = async () => {
     try {
-      const userInfoResponse = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const userInfo = await userInfoResponse.json();
-      console.log('[5MIN] Google User Info:', userInfo);
-      
-      const user = await socialLogin('GOOGLE', userInfo.id, userInfo.email, userInfo.name);
-      onLoginSuccess(user);
+      const authUrl =
+        `https://accounts.google.com/o/oauth2/v2/auth` +
+        `?client_id=${GOOGLE_CLIENT_ID}` +
+        `&response_type=code` +
+        `&scope=email%20profile`;
+      await openOAuthSession(authUrl, GOOGLE_CALLBACK_URL);
     } catch (error) {
       console.error('[5MIN] Google Login Error:', error);
-      Alert.alert('로그인 오류', '구글 로그인에 실패했습니다. (서버 상태 확인 필요)');
+      Alert.alert('로그인 오류', error.message || '구글 로그인에 실패했습니다.');
     }
   };
 
-  // --- 카카오 로그인 설정 ---
-  const [kakaoRequest, kakaoResponse, kakaoPromptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: KAKAO_REST_API_KEY,
-      redirectUri: redirectUri,
-      scopes: ['account_email', 'profile_nickname'],
-      responseType: AuthSession.ResponseType.Code,
-    },
-    {
-      authorizationEndpoint: 'https://kauth.kakao.com/oauth/authorize',
-      tokenEndpoint: 'https://kauth.kakao.com/oauth/token',
-    }
-  );
-
-  useEffect(() => {
-    if (kakaoResponse?.type === 'success') {
-      const { code } = kakaoResponse.params;
-      handleKakaoLogin(code);
-    }
-  }, [kakaoResponse]);
-
-  const handleKakaoLogin = async (code) => {
+  // --- 카카오 로그인 (백엔드가 중계) ---
+  const handleKakaoLogin = async () => {
     try {
-      console.log('[5MIN] Kakao Login with code:', code);
-      const user = await kakaoLogin(code, redirectUri);
-      onLoginSuccess(user);
+      const callbackUrl = BASE_URL + KAKAO_CALLBACK_PATH;
+      const authUrl =
+        `https://kauth.kakao.com/oauth/authorize` +
+        `?client_id=${KAKAO_REST_API_KEY}` +
+        `&response_type=code` +
+        `&scope=account_email,profile_nickname`;
+      await openOAuthSession(authUrl, callbackUrl);
     } catch (error) {
       console.error('[5MIN] Kakao Login Error:', error);
       Alert.alert('로그인 오류', error.message || '카카오 로그인에 실패했습니다.');
     }
   };
-
-  useEffect(() => {
-    console.log('[5MIN] Current Redirect URI:', redirectUri);
-  }, [redirectUri]);
 
   return (
     <SafeAreaView style={s.safe}>
@@ -140,9 +133,8 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
         <View style={s.btnArea}>
           <TouchableOpacity
             style={s.kakaoBtn}
-            onPress={() => kakaoPromptAsync()}
+            onPress={handleKakaoLogin}
             activeOpacity={0.85}
-            disabled={!kakaoRequest}
           >
             <Svg width={20} height={20} viewBox="0 0 20 20" style={{ marginRight: 8 }}>
               <Ellipse cx="10" cy="9" rx="9" ry="8.5" fill="#3C1E1E" />
@@ -153,9 +145,8 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
           </TouchableOpacity>
           <TouchableOpacity
             style={s.googleBtn}
-            onPress={() => googlePromptAsync()}
+            onPress={handleGoogleLogin}
             activeOpacity={0.85}
-            disabled={!googleRequest}
           >
             <Svg width={20} height={20} viewBox="0 0 20 20" style={{ marginRight: 8 }}>
               <Path d="M19.6 10.23c0-.68-.06-1.36-.18-2H10v3.79h5.4a4.62 4.62 0 01-2 3.03v2.5h3.24c1.9-1.75 3-4.33 3-7.32z" fill="#4285F4" />
