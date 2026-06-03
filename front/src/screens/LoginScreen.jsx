@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import React from 'react';
+=======
+import React, { useEffect } from 'react';
+>>>>>>> fce8946e919601274b2c1b38c268e8f4b7593c18
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Dimensions, StatusBar, Alert, Platform,
@@ -67,6 +71,16 @@ function FiveMinLogo({ size = 160 }) {
 }
 
 export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginSuccess }) {
+<<<<<<< HEAD
+=======
+  
+  // 카카오 개발자 센터에 등록한 주소로 완전히 고정
+  const redirectUri = 'https://auth.expo.io/@anonymous/5min';
+
+  useEffect(() => {
+    console.log('[5MIN] ★카카오 등록 주소 강제 적용★:', redirectUri);
+  }, []);
+>>>>>>> fce8946e919601274b2c1b38c268e8f4b7593c18
 
   // --- 소셜 OAuth 공통 처리 (백엔드 중계 → exp:// deep link) ---
   const openOAuthSession = async (authUrl, callbackUrl) => {
@@ -105,8 +119,35 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
     }
   };
 
+<<<<<<< HEAD
   // --- 카카오 로그인 (백엔드가 중계) ---
   const handleKakaoLogin = async () => {
+=======
+  // --- 카카오 로그인 설정 ---
+  const discovery = {
+    authorizationEndpoint: 'https://kauth.kakao.com/oauth/authorize',
+    tokenEndpoint: 'https://kauth.kakao.com/oauth/token',
+  };
+
+  const [kakaoRequest, kakaoResponse, kakaoPromptAsync] = AuthSession.useAuthRequest(
+    {
+      clientId: KAKAO_REST_API_KEY,
+      redirectUri: redirectUri,
+      scopes: ['account_email', 'profile_nickname'],
+      responseType: AuthSession.ResponseType.Code,
+    },
+    discovery
+  );
+
+  useEffect(() => {
+    if (kakaoResponse?.type === 'success') {
+      const { code } = kakaoResponse.params;
+      handleKakaoLogin(code);
+    }
+  }, [kakaoResponse]);
+
+  const handleKakaoLogin = async (code) => {
+>>>>>>> fce8946e919601274b2c1b38c268e8f4b7593c18
     try {
       const callbackUrl = BASE_URL + KAKAO_CALLBACK_PATH;
       const authUrl =
@@ -133,7 +174,11 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
         <View style={s.btnArea}>
           <TouchableOpacity
             style={s.kakaoBtn}
+<<<<<<< HEAD
             onPress={handleKakaoLogin}
+=======
+            onPress={() => kakaoPromptAsync({ useProxy: true })}
+>>>>>>> fce8946e919601274b2c1b38c268e8f4b7593c18
             activeOpacity={0.85}
           >
             <Svg width={20} height={20} viewBox="0 0 20 20" style={{ marginRight: 8 }}>
@@ -145,7 +190,11 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
           </TouchableOpacity>
           <TouchableOpacity
             style={s.googleBtn}
+<<<<<<< HEAD
             onPress={handleGoogleLogin}
+=======
+            onPress={() => googlePromptAsync({ useProxy: true })}
+>>>>>>> fce8946e919601274b2c1b38c268e8f4b7593c18
             activeOpacity={0.85}
           >
             <Svg width={20} height={20} viewBox="0 0 20 20" style={{ marginRight: 8 }}>

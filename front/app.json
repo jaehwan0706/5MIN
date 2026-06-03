@@ -2,6 +2,7 @@
   "expo": {
     "name": "5min",
     "slug": "5min",
+    "scheme": "fivemin",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert
 } from 'react-native';
-import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps';
+import MapView, { Marker, Circle, Callout, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
 
@@ -192,20 +192,27 @@ export default function MapScreen({ userId }) {
             </>
           )}
 
-          {/* 주변 병원 핀 마커 루프 */}
+          {/* 주변 병원 마커 루프 — 십자 아이콘 + 탭 시 이름 말풍선 */}
           {hospitals.map(h => (
             <Marker
               key={h.id}
               coordinate={{ latitude: h.lat, longitude: h.lng }}
               onPress={() => focusHospital(h)}
+              anchor={{ x: 0.5, y: 0.5 }}
             >
               <View style={[
-                s.pin,
+                s.hospitalMarker,
                 { backgroundColor: LEVEL_COLOR[h.level] },
-                selected?.id === h.id && s.pinSelected,
+                selected?.id === h.id && s.hospitalMarkerSelected,
               ]}>
-                <Text style={s.pinTxt}>{h.name}</Text>
+                <MaterialIcons name="local-hospital" size={16} color="#fff" />
               </View>
+              <Callout tooltip={false}>
+                <View style={s.callout}>
+                  <Text style={s.calloutName}>{h.name}</Text>
+                  <Text style={s.calloutDist}>{h.dist}</Text>
+                </View>
+              </Callout>
             </Marker>
           ))}
         </MapView>
@@ -287,12 +294,16 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     zIndex: 10,
   },
-  pin:         {
-    paddingHorizontal: 9, paddingVertical: 4,
-    borderRadius: 20, borderWidth: 2, borderColor: '#fff',
+  hospitalMarker: {
+    width: 30, height: 30, borderRadius: 15,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#fff',
+    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 3, elevation: 5,
   },
-  pinSelected: { transform: [{ scale: 1.15 }] },
-  pinTxt:      { color: '#fff', fontSize: 11, fontWeight: '700' },
+  hospitalMarkerSelected: { transform: [{ scale: 1.25 }] },
+  callout: { paddingHorizontal: 10, paddingVertical: 6, minWidth: 100, maxWidth: 180 },
+  calloutName: { fontSize: 13, fontWeight: '700', color: '#1A1A1A' },
+  calloutDist: { fontSize: 11, color: '#666', marginTop: 2 },
   legend:      {
     position: 'absolute', top: 10, right: 10,
     borderRadius: 8, padding: 6,
