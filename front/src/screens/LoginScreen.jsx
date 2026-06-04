@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Dimensions, StatusBar, Alert, Platform,
-  TextInput, ActivityIndicator,
+  TextInput, ActivityIndicator, KeyboardAvoidingView, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Ellipse, Rect, Defs, RadialGradient, Stop, LinearGradient } from 'react-native-svg';
@@ -162,7 +162,16 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" />
-      <View style={s.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      >
+        <ScrollView
+          contentContainerStyle={s.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
         <View style={s.logoArea}>
           <FiveMinLogo size={140} />
           <Text style={s.appName}>5분</Text>
@@ -250,14 +259,15 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe:      { flex: 1, backgroundColor: '#FAFAFA' },
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
+  container: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 32 },
   logoArea:  { alignItems: 'center', marginBottom: 48 },
   appName:   { fontSize: 42, fontWeight: '800', color: '#E24B4A', marginTop: 16, letterSpacing: -1 },
   tagline:   { fontSize: 14, color: '#888', marginTop: 6, letterSpacing: 0.2 },
