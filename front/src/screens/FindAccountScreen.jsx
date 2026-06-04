@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform, Alert,
+  StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { findId, sendVerifyCode, resetPassword } from '../api/userApi';
 
 const TABS = [
   { id: 'id',  label: '아이디 찾기' },
@@ -11,33 +12,84 @@ const TABS = [
 ];
 
 export default function FindAccountScreen({ onBack }) {
-  const [tab, setTab]     = useState('id');
+  const [tab, setTab] = useState('id');
+
+  // 아이디 찾기 상태
   const [name, setName]   = useState('');
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [code, setCode]   = useState('');
-  const [codeSent, setCodeSent] = useState(false);
-  const [result, setResult]     = useState('');
+  const [idResult, setIdResult] = useState('');    // 마스킹된 이메일
+  const [idError, setIdError]   = useState('');
+  const [idLoading, setIdLoading] = useState(false);
 
-  const reset = () => { setName(''); setPhone(''); setEmail(''); setCode(''); setCodeSent(false); setResult(''); };
+  // 비밀번호 찾기 상태
+  const [email, setEmail]       = useState('');
+  const [code, setCode]         = useState('');
+  const [newPw, setNewPw]       = useState('');
+  const [newPwConfirm, setNewPwConfirm] = useState('');
+  const [codeSent, setCodeSent]       = useState(false);
+  const [codeVerified, setCodeVerified] = useState(false);
+  const [pwDone, setPwDone]           = useState(false);
+  const [pwError, setPwError]         = useState('');
+  const [pwLoading, setPwLoading]     = useState(false);
 
-  const sendCode = () => {
-    if (!email.trim()) { Alert.alert('알림', '이메일을 입력해주세요.'); return; }
-    setCodeSent(true);
-    Alert.alert('인증코드 발송', `${email} 으로 인증코드를 보냈습니다.`);
+  const resetAll = () => {
+    setName(''); setPhone(''); setIdResult(''); setIdError('');
+    setEmail(''); setCode(''); setNewPw(''); setNewPwConfirm('');
+    setCodeSent(false); setCodeVerified(false); setPwDone(false);
+    setPwError('');
   };
 
-  const findId = () => {
-    if (!name.trim() || !phone.trim()) { Alert.alert('알림', '이름과 휴대폰 번호를 입력해주세요.'); return; }
-    setResult('hong****@email.com'); // 실제 서버 연동 시 교체
+  // ── 아이디 찾기 ──
+  const handleFindId = async () => {
+    if (!name.trim() || !phone.trim()) {
+      setIdError('이름과 휴대폰 번호를 입력해주세요.');
+      return;
+    }
+    setIdError('');
+    setIdResult('');
+    setIdLoading(true);
+    try {
+      const res = await findId(name.trim(), phone.trim());
+      setIdResult(res.email);
+    } catch (err) {
+      setIdError(err.message || '일치하는 계정 정보가 없습니다.');
+    } finally {
+      setIdLoading(false);
+    }
   };
 
-  const resetPw = () => {
-    if (!codeSent) { Alert.alert('알림', '먼저 인증코드를 발송해주세요.'); return; }
-    if (!code.trim()) { Alert.alert('알림', '인증코드를 입력해주세요.'); return; }
-    Alert.alert('임시 비밀번호 발송', '입력하신 이메일로 임시 비밀번호를 보냈습니다.', [
-      { text: '확인', onPress: onBack },
-    ]);
+  // ── 인증코드 발송 ──
+  const handleSendCode = async () => {
+    if (!email.trim()) { setPwError('이메일을 입력해주세요.'); return; }
+    setPwError('');
+    setPwLoading(true);
+    try {
+      await sendVerifyCode(email.trim());
+      setCodeSent(true);
+      setCode('');
+      setCodeVerified(false);
+    } catch (err) {
+      setPwError(err.message || '이메일 발송에 실패했습니다.');
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
+  // ── 비밀번호 재설정 ──
+  const handleResetPw = async () => {
+    if (!code.trim()) { setPwError('인증코드를 입력해주세요.'); return; }
+    if (!newPw || newPw.length < 8) { setPwError('비밀번호는 8자 이상이어야 합니다.'); return; }
+    if (newPw !== newPwConfirm) { setPwError('비밀번호가 일치하지 않습니다.'); return; }
+    setPwError('');
+    setPwLoading(true);
+    try {
+      await resetPassword(email.trim(), code.trim(), newPw);
+      setPwDone(true);
+    } catch (err) {
+      setPwError(err.message || '비밀번호 재설정에 실패했습니다.');
+    } finally {
+      setPwLoading(false);
+    }
   };
 
   return (
@@ -61,7 +113,7 @@ export default function FindAccountScreen({ onBack }) {
             <TouchableOpacity
               key={t.id}
               style={[s.tabItem, tab === t.id && s.tabActive]}
-              onPress={() => { setTab(t.id); reset(); }}
+              onPress={() => { setTab(t.id); resetAll(); }}
               activeOpacity={0.7}
             >
               <Text style={[s.tabTxt, tab === t.id && s.tabTxtActive]}>{t.label}</Text>
@@ -74,49 +126,115 @@ export default function FindAccountScreen({ onBack }) {
             /* ── 아이디 찾기 ── */
             <>
               <Text style={s.desc}>가입 시 입력한 이름과 휴대폰 번호로 아이디를 찾습니다.</Text>
-              <Field label="이름" placeholder="홍길동" value={name} onChangeText={setName} />
+              <Field
+                label="이름" placeholder="홍길동"
+                value={name} onChangeText={v => { setName(v); setIdError(''); }}
+              />
               <Field
                 label="휴대폰 번호" placeholder="01012345678"
-                value={phone} onChangeText={setPhone}
+                value={phone} onChangeText={v => { setPhone(v); setIdError(''); }}
                 keyboardType="phone-pad"
               />
-              <TouchableOpacity style={s.submitBtn} onPress={findId} activeOpacity={0.85}>
-                <Text style={s.submitTxt}>아이디 찾기</Text>
+              {idError ? <Text style={s.errorTxt}>{idError}</Text> : null}
+              <TouchableOpacity
+                style={[s.submitBtn, idLoading && { opacity: 0.7 }]}
+                onPress={handleFindId}
+                disabled={idLoading}
+                activeOpacity={0.85}
+              >
+                {idLoading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={s.submitTxt}>아이디 찾기</Text>}
               </TouchableOpacity>
-              {result ? (
+              {idResult ? (
                 <View style={s.resultBox}>
-                  <Text style={s.resultLabel}>찾은 아이디</Text>
-                  <Text style={s.resultValue}>{result}</Text>
+                  <Text style={s.resultLabel}>가입된 아이디(이메일)</Text>
+                  <Text style={s.resultValue}>{idResult}</Text>
                 </View>
               ) : null}
             </>
+          ) : pwDone ? (
+            /* ── 비밀번호 변경 완료 ── */
+            <View style={s.doneBox}>
+              <Text style={s.doneIcon}>✓</Text>
+              <Text style={s.doneTxt}>비밀번호가 변경되었습니다.</Text>
+              <TouchableOpacity style={s.submitBtn} onPress={onBack} activeOpacity={0.85}>
+                <Text style={s.submitTxt}>로그인으로 돌아가기</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             /* ── 비밀번호 찾기 ── */
             <>
-              <Text style={s.desc}>가입 시 사용한 이메일로 인증 후 임시 비밀번호를 받습니다.</Text>
-              <Field
-                label="이메일" placeholder="example@email.com"
-                value={email} onChangeText={setEmail}
-                keyboardType="email-address" autoCapitalize="none"
-              />
-              <TouchableOpacity
-                style={[s.codeBtn, codeSent && s.codeBtnSent]}
-                onPress={sendCode} activeOpacity={0.85}
-              >
-                <Text style={[s.codeBtnTxt, codeSent && s.codeBtnTxtSent]}>
-                  {codeSent ? '인증코드 재발송' : '인증코드 발송'}
-                </Text>
-              </TouchableOpacity>
-              {codeSent && (
+              <Text style={s.desc}>가입 시 사용한 이메일로 인증 후 비밀번호를 재설정합니다.</Text>
+
+              {/* 이메일 + 인증코드 발송 */}
+              <View style={s.rowWrap}>
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label="이메일" placeholder="example@email.com"
+                    value={email}
+                    onChangeText={v => { setEmail(v); setPwError(''); setCodeSent(false); setCodeVerified(false); }}
+                    keyboardType="email-address" autoCapitalize="none"
+                  />
+                </View>
+                <TouchableOpacity
+                  style={[s.codeBtn, codeSent && s.codeBtnSent, pwLoading && { opacity: 0.6 }]}
+                  onPress={handleSendCode}
+                  disabled={pwLoading}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[s.codeBtnTxt, codeSent && s.codeBtnTxtSent]}>
+                    {codeSent ? '재발송' : '발송'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* 인증코드 입력 */}
+              {codeSent && !codeVerified && (
                 <Field
                   label="인증코드" placeholder="이메일로 받은 6자리 코드"
-                  value={code} onChangeText={setCode}
+                  value={code}
+                  onChangeText={v => { setCode(v); setPwError(''); }}
                   keyboardType="number-pad"
+                  maxLength={6}
                 />
               )}
-              <TouchableOpacity style={s.submitBtn} onPress={resetPw} activeOpacity={0.85}>
-                <Text style={s.submitTxt}>임시 비밀번호 받기</Text>
-              </TouchableOpacity>
+              {codeVerified && (
+                <Text style={s.verifiedTxt}>✓ 인증 완료</Text>
+              )}
+
+              {/* 새 비밀번호 (인증코드 입력 후 표시) */}
+              {codeSent && !codeVerified && (
+                <>
+                  <Field
+                    label="새 비밀번호" placeholder="8자 이상"
+                    value={newPw}
+                    onChangeText={v => { setNewPw(v); setPwError(''); }}
+                    secureTextEntry
+                  />
+                  <Field
+                    label="새 비밀번호 확인" placeholder="비밀번호 재입력"
+                    value={newPwConfirm}
+                    onChangeText={v => { setNewPwConfirm(v); setPwError(''); }}
+                    secureTextEntry
+                  />
+                </>
+              )}
+
+              {pwError ? <Text style={s.errorTxt}>{pwError}</Text> : null}
+
+              {codeSent && (
+                <TouchableOpacity
+                  style={[s.submitBtn, pwLoading && { opacity: 0.7 }]}
+                  onPress={handleResetPw}
+                  disabled={pwLoading}
+                  activeOpacity={0.85}
+                >
+                  {pwLoading
+                    ? <ActivityIndicator color="#fff" />
+                    : <Text style={s.submitTxt}>비밀번호 변경</Text>}
+                </TouchableOpacity>
+              )}
             </>
           )}
         </View>
@@ -166,13 +284,16 @@ const s = StyleSheet.create({
     borderColor: '#E0E0E0', paddingHorizontal: 14, paddingVertical: 13,
     fontSize: 15, color: '#1A1A1A',
   },
+  rowWrap:       { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   codeBtn:       {
     borderWidth: 1.5, borderColor: '#E24B4A', borderRadius: 10,
-    paddingVertical: 13, alignItems: 'center', marginBottom: 14,
+    paddingVertical: 13, paddingHorizontal: 16, marginBottom: 14,
   },
   codeBtnSent:   { borderColor: '#CCC' },
-  codeBtnTxt:    { fontSize: 15, fontWeight: '600', color: '#E24B4A' },
+  codeBtnTxt:    { fontSize: 14, fontWeight: '600', color: '#E24B4A' },
   codeBtnTxtSent:{ color: '#999' },
+  errorTxt:      { fontSize: 12, color: '#E24B4A', marginBottom: 8, marginTop: -8 },
+  verifiedTxt:   { fontSize: 13, color: '#2ECC71', fontWeight: '600', marginBottom: 8 },
   submitBtn:     {
     backgroundColor: '#E24B4A', borderRadius: 12, paddingVertical: 15,
     alignItems: 'center', marginTop: 4,
@@ -185,4 +306,7 @@ const s = StyleSheet.create({
   },
   resultLabel:   { fontSize: 12, color: '#888', marginBottom: 6 },
   resultValue:   { fontSize: 20, fontWeight: '700', color: '#E24B4A' },
+  doneBox:       { alignItems: 'center', paddingTop: 40, gap: 16 },
+  doneIcon:      { fontSize: 48, color: '#2ECC71' },
+  doneTxt:       { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8 },
 });

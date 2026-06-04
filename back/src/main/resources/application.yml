@@ -18,6 +18,17 @@ google:
 spring:
   profiles:
     active: local
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
   datasource:
     url: jdbc:mysql://fivemin-db.clgowq824mdk.ap-northeast-2.rds.amazonaws.com:3306/fivemin?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
     username: admin

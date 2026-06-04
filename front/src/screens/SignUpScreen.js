@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
+  StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
@@ -13,7 +13,9 @@ export default function SignUpScreen({ onBack, onComplete }) {
   });
   const [agreed, setAgreed] = useState(false);
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
@@ -31,17 +33,20 @@ export default function SignUpScreen({ onBack, onComplete }) {
 
   const submit = async () => {
     if (!validate()) return;
+    setSubmitError('');
     setLoading(true);
     try {
-      // GPS 권한 요청
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      // GPS 권한 요청 (실패해도 위치 없이 진행)
       let latitude = null;
       let longitude = null;
-      if (status === 'granted') {
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        latitude = pos.coords.latitude;
-        longitude = pos.coords.longitude;
-      }
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          latitude = pos.coords.latitude;
+          longitude = pos.coords.longitude;
+        }
+      } catch { /* 위치 권한 실패는 무시하고 가입 진행 */ }
 
       // 회원가입 API 호출
       const user = await signup({
@@ -53,11 +58,18 @@ export default function SignUpScreen({ onBack, onComplete }) {
         longitude,
       });
 
-      Alert.alert('회원가입 완료', `${form.name}님, 환영합니다!`, [
-        { text: '로그인하러 가기', onPress: () => onComplete(user) },
-      ]);
+      // 가입 성공 → 완료 메시지 보여주고 1.5초 후 로그인 화면으로
+      setDone(true);
+      setTimeout(onBack, 1500);
     } catch (err) {
-      Alert.alert('회원가입 실패', err.message);
+      const msg = err.message || '회원가입에 실패했습니다.';
+      if (msg.includes('이메일')) {
+        setErrors(e => ({ ...e, email: msg }));
+      } else if (msg.includes('전화번호')) {
+        setErrors(e => ({ ...e, phone: msg }));
+      } else {
+        setSubmitError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -77,6 +89,14 @@ export default function SignUpScreen({ onBack, onComplete }) {
           <Text style={s.headerTitle}>회원가입</Text>
           <View style={{ width: 36 }} />
         </View>
+
+        {done && (
+          <View style={s.doneOverlay}>
+            <Text style={s.doneIcon}>✓</Text>
+            <Text style={s.doneTxt}>회원가입이 완료되었습니다!</Text>
+            <Text style={s.doneSub}>로그인 화면으로 이동합니다</Text>
+          </View>
+        )}
 
         <ScrollView
           contentContainerStyle={s.content}
@@ -131,6 +151,9 @@ export default function SignUpScreen({ onBack, onComplete }) {
               ? <ActivityIndicator color="#fff" />
               : <Text style={s.submitTxt}>가입하기</Text>}
           </TouchableOpacity>
+          {submitError ? (
+            <Text style={s.submitError}>{submitError}</Text>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -187,4 +210,14 @@ const s = StyleSheet.create({
     shadowColor: '#E24B4A', shadowOpacity: 0.3, shadowRadius: 6, elevation: 3,
   },
   submitTxt:   { fontSize: 16, fontWeight: '700', color: '#fff' },
+  submitError: { fontSize: 13, color: '#E24B4A', textAlign: 'center', marginTop: 10 },
+  doneOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center', justifyContent: 'center',
+    zIndex: 10, gap: 8,
+  },
+  doneIcon: { fontSize: 56, color: '#2ECC71' },
+  doneTxt:  { fontSize: 18, fontWeight: '700', color: '#1A1A1A' },
+  doneSub:  { fontSize: 13, color: '#888' },
 });

@@ -59,8 +59,8 @@ export default function ListScreen() {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const { latitude: lat, longitude: lng } = pos.coords;
 
-      // 반경 50km, 최대 100개
-      const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 50, 100);
+      // 반경 500km (한국 전체), 최대 500개
+      const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 500, 500);
 
       const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
       const stage1 = geocode[0]?.region || geocode[0]?.city || '';

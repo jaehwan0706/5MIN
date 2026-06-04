@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, StatusBar, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, StatusBar, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import BottomNav         from './src/components/BottomNav';
+import PhoneFrame        from './src/components/PhoneFrame';
 import MapScreen         from './src/screens/MapScreen';
 import ListScreen        from './src/screens/ListScreen';
 import PedsScreen        from './src/screens/PedsScreen';
@@ -16,7 +17,8 @@ import EmailLoginScreen  from './src/screens/EmailLoginScreen';
 import SignUpScreen      from './src/screens/SignUpScreen';
 import SocialSignupScreen from './src/screens/SocialSignupScreen';
 import FindAccountScreen from './src/screens/FindAccountScreen';
-import { updateLocation } from './src/api/userApi';
+import SplashScreen      from './src/screens/SplashScreen';
+import { updateLocation, kakaoLogin } from './src/api/userApi';
 import { Ionicons } from '@expo/vector-icons';
 
 const USER_KEY = 'fivemin_user';
@@ -30,14 +32,54 @@ function Main() {
 
   // 앱 시작 시 저장된 사용자 확인
   useEffect(() => {
+    if (Platform.OS === 'web') {
+      const params     = new URLSearchParams(window.location.search);
+      const code       = params.get('code');    // 카카오 OAuth redirect 콜백
+      const userJson   = params.get('user');    // 백엔드 중계 콜백 (앱용 호환)
+      const errorParam = params.get('error');
+
+      if (errorParam) {
+        window.history.replaceState({}, '', window.location.pathname);
+        setAuth('login');
+        return;
+      }
+
+      // 카카오 로그인 redirect 후 ?code= 파라미터 처리
+      if (code) {
+        window.history.replaceState({}, '', window.location.pathname);
+        const redirectUri = window.location.origin;
+        kakaoLogin(code, redirectUri)
+          .then(userData => {
+            setUser(userData);
+            setAuth(userData.infoCompleted ? 'app' : 'social_signup');
+          })
+          .catch(err => {
+            console.error('[5MIN] Kakao code exchange error:', err);
+            setAuth('login');
+          });
+        return; // auth는 'loading' 유지 → 위 then/catch에서 변경
+      }
+
+      if (userJson) {
+        try {
+          const userData = JSON.parse(decodeURIComponent(userJson));
+          window.history.replaceState({}, '', window.location.pathname);
+          setUser(userData);
+          setAuth(userData.infoCompleted ? 'app' : 'social_signup');
+        } catch {
+          setAuth('login');
+        }
+        return;
+      }
+      setAuth('login');
+      return;
+    }
     (async () => {
       try {
         const saved = await AsyncStorage.getItem(USER_KEY);
         if (saved) {
           const userData = JSON.parse(saved);
-          console.log('[5MIN] Loaded saved user:', userData);
           setUser(userData);
-          // 필수 정보(혈액형 등)가 없으면 정보 입력 화면으로 보냄
           if (userData.infoCompleted) {
             setAuth('app');
           } else {
@@ -179,12 +221,19 @@ function Main() {
 }
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <Main />
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <PhoneFrame>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          {showSplash
+            ? <SplashScreen onFinish={() => setShowSplash(false)} />
+            : <Main />
+          }
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </PhoneFrame>
   );
 }
 

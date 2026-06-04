@@ -194,6 +194,55 @@ public class UserController {
         return map;
     }
 
+    // 아이디 찾기 (이름 + 전화번호 → 마스킹된 이메일)
+    @PostMapping("/find-id")
+    public ResponseEntity<Map<String, Object>> findId(@Valid @RequestBody FindIdRequest req) {
+        try {
+            String maskedEmail = userService.findEmailByNameAndPhone(req.name, req.phone);
+            Map<String, Object> res = new LinkedHashMap<>();
+            res.put("email", maskedEmail);
+            return ResponseEntity.ok(res);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> err = new LinkedHashMap<>();
+            err.put("error", e.getMessage());
+            return ResponseEntity.status(404).body(err);
+        }
+    }
+
+    // 비밀번호 찾기 — 인증코드 이메일 발송
+    @PostMapping("/send-verify-code")
+    public ResponseEntity<Map<String, Object>> sendVerifyCode(@Valid @RequestBody EmailRequest req) {
+        try {
+            userService.sendVerificationCode(req.email);
+            Map<String, Object> res = new LinkedHashMap<>();
+            res.put("message", "인증코드가 발송되었습니다.");
+            return ResponseEntity.ok(res);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> err = new LinkedHashMap<>();
+            err.put("error", e.getMessage());
+            return ResponseEntity.status(404).body(err);
+        } catch (Exception e) {
+            Map<String, Object> err = new LinkedHashMap<>();
+            err.put("error", "이메일 발송에 실패했습니다. 이메일 주소를 확인해주세요.");
+            return ResponseEntity.status(500).body(err);
+        }
+    }
+
+    // 비밀번호 재설정 (인증코드 검증 + 새 비밀번호 저장)
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, Object>> resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
+        try {
+            userService.resetPassword(req.email, req.code, req.newPassword);
+            Map<String, Object> res = new LinkedHashMap<>();
+            res.put("message", "비밀번호가 변경되었습니다.");
+            return ResponseEntity.ok(res);
+        } catch (IllegalArgumentException e) {
+            Map<String, Object> err = new LinkedHashMap<>();
+            err.put("error", e.getMessage());
+            return ResponseEntity.status(400).body(err);
+        }
+    }
+
     // ── Request DTOs ────────────────────────────────────────────────────────
 
     public static class SignupRequest {
@@ -250,5 +299,29 @@ public class UserController {
         public String emergencyContact;
         public String carInfo;
         public String medications;
+    }
+
+    public static class FindIdRequest {
+        @NotBlank(message = "이름을 입력해주세요.")
+        public String name;
+        @NotBlank(message = "전화번호를 입력해주세요.")
+        public String phone;
+    }
+
+    public static class EmailRequest {
+        @NotBlank(message = "이메일을 입력해주세요.")
+        @Email(message = "유효한 이메일 형식이 아닙니다.")
+        public String email;
+    }
+
+    public static class ResetPasswordRequest {
+        @NotBlank(message = "이메일을 입력해주세요.")
+        @Email(message = "유효한 이메일 형식이 아닙니다.")
+        public String email;
+        @NotBlank(message = "인증코드를 입력해주세요.")
+        public String code;
+        @NotBlank(message = "새 비밀번호를 입력해주세요.")
+        @Size(min = 8, message = "비밀번호는 8자 이상이어야 합니다.")
+        public String newPassword;
     }
 }

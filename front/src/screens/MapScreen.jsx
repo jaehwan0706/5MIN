@@ -1,10 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Platform
 } from 'react-native';
-import MapView, { Marker, Circle, Callout, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+
+// react-native-maps는 웹에서 동작하지 않으므로 조건부 임포트
+let MapView, Marker, Circle, Callout, PROVIDER_DEFAULT;
+if (Platform.OS !== 'web') {
+  const Maps = require('react-native-maps');
+  MapView           = Maps.default;
+  Marker            = Maps.Marker;
+  Circle            = Maps.Circle;
+  Callout           = Maps.Callout;
+  PROVIDER_DEFAULT  = Maps.PROVIDER_DEFAULT;
+}
 
 import { useTheme } from '../theme/ThemeContext';
 import HospitalCard from '../components/HospitalCard';
@@ -189,6 +199,31 @@ export default function MapScreen({ userId }) {
     }
   };
 
+  // 웹: 지도 대신 병원 목록 표시
+  if (Platform.OS === 'web') {
+    if (loading) {
+      return (
+        <View style={[s.container, { backgroundColor: t.bg, justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color="#E24B4A" />
+        </View>
+      );
+    }
+    return (
+      <View style={[s.container, { backgroundColor: t.bg }]}>
+        <View style={s.webBanner}>
+          <Text style={s.webBannerTxt}>🗺 지도는 앱에서 지원 · 주변 응급실 30km 목록</Text>
+        </View>
+        <ScrollView contentContainerStyle={{ padding: 12 }}>
+          {hospitals.length === 0 ? (
+            <Text style={{ color: t.textSub, textAlign: 'center', marginTop: 40 }}>주변 병원을 찾을 수 없습니다.</Text>
+          ) : (
+            hospitals.map(h => <HospitalCard key={h.id} hospital={h} />)
+          )}
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <View style={[s.container, { backgroundColor: t.bg }]}>
       <View style={s.mapWrapper}>
@@ -308,6 +343,8 @@ export default function MapScreen({ userId }) {
 
 const s = StyleSheet.create({
   container:   { flex: 1 },
+  webBanner:   { backgroundColor: '#FCEBEB', padding: 10, alignItems: 'center' },
+  webBannerTxt:{ fontSize: 12, color: '#791F1F' },
   mapWrapper:  { height: 260, position: 'relative' },
   map:         { flex: 1 },
   myLocationBtn: {

@@ -24,11 +24,30 @@ console.log('[5MIN] API Base URL:', BASE_URL);
 
 export async function apiFetch(path, options = {}) {
   const url = `${BASE_URL}${path}`;
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? '서버 오류가 발생했습니다.');
+  let res;
+  try {
+    res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+    });
+  } catch {
+    throw new Error('서버에 연결할 수 없습니다. 백엔드가 실행 중인지 확인해주세요.');
+  }
+
+  // 응답 body가 비어있을 수 있으므로 텍스트로 먼저 읽은 후 JSON 파싱
+  const text = await res.text();
+  let data = {};
+  try {
+    if (text) data = JSON.parse(text);
+  } catch {
+    // JSON 파싱 실패 시 상태 코드로 판단
+    if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
+    return {};
+  }
+
+  if (!res.ok) {
+    const msg = data.error ?? data.message ?? data.title ?? `서버 오류 (${res.status})`;
+    throw new Error(msg);
+  }
   return data;
 }

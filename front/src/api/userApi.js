@@ -47,3 +47,27 @@ export function updateMedicalInfo(userId, bloodType, chronicDisease, emergencyCo
     body: JSON.stringify({ bloodType, chronicDisease, emergencyContact, carInfo, medications }),
   });
 }
+
+// 아이디 찾기 (이름 + 전화번호)
+export function findId(name, phone) {
+  return apiFetch('/api/user/find-id', {
+    method: 'POST',
+    body: JSON.stringify({ name, phone }),
+  });
+}
+
+// 비밀번호 찾기 — 인증코드 이메일 발송
+export function sendVerifyCode(email) {
+  return apiFetch('/api/user/send-verify-code', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+// 비밀번호 재설정 (인증코드 + 새 비밀번호)
+export function resetPassword(email, code, newPassword) {
+  return apiFetch('/api/user/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ email, code, newPassword }),
+  });
+}

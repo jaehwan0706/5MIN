@@ -5,8 +5,9 @@ import com.fivemin.repository.UserRepository;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
@@ -15,6 +16,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class UserService {
@@ -22,6 +24,11 @@ public class UserService {
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final RestTemplate restTemplate;
+    private final JavaMailSender mailSender;
+
+    // 이메일 → {code, 만료시각} 임시 저장 (인증코드 5분 유효)
+    private final ConcurrentHashMap<String, CodeRecord> verifyCodeStore = new ConcurrentHashMap<>();
+    private record CodeRecord(String code, LocalDateTime expiresAt) {}
 
     @Value("${kakao.rest.key}")
     private String kakaoRestKey;
@@ -35,9 +42,13 @@ public class UserService {
     @Value("${google.client.secret}")
     private String googleClientSecret;
 
-    public UserService(UserRepository userRepository, RestTemplate restTemplate) {
+    @Value("${spring.mail.username}")
+    private String mailFrom;
+
+    public UserService(UserRepository userRepository, RestTemplate restTemplate, JavaMailSender mailSender) {
         this.userRepository = userRepository;
         this.restTemplate = restTemplate;
+        this.mailSender = mailSender;
     }
 
     // 카카오 인가 코드로 토큰 발급 및 사용자 정보 조회 후 로그인 처리
@@ -142,6 +153,9 @@ public class UserService {
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
         }
+        if (phone != null && !phone.isBlank() && userRepository.existsByPhone(phone)) {
+            throw new IllegalArgumentException("이미 사용 중인 전화번호입니다.");
+        }
         User user = new User();
         user.setName(name);
         user.setEmail(email);
@@ -149,6 +163,7 @@ public class UserService {
         user.setPhone(phone);
         user.setLatitude(latitude);
         user.setLongitude(longitude);
+        user.setInfoCompleted(true); // 일반 가입은 필수 정보 입력 완료
         user.setCreatedAt(LocalDateTime.now());
         return userRepository.save(user);
     }
@@ -223,5 +238,67 @@ public class UserService {
     public User findById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+    }
+
+    // 이름 + 전화번호로 이메일 찾기 (마스킹 처리)
+    public String findEmailByNameAndPhone(String name, String phone) {
+        User user = userRepository.findByNameAndPhone(name, phone)
+                .orElseThrow(() -> new IllegalArgumentException("일치하는 계정 정보가 없습니다."));
+        return maskEmail(user.getEmail());
+    }
+
+    // 이메일 중간 마스킹: 앞 2자 + *** + 뒤 1자 + @domain
+    private String maskEmail(String email) {
+        int at = email.indexOf('@');
+        if (at < 0) return email;
+        String local = email.substring(0, at);
+        String domain = email.substring(at);
+        if (local.length() <= 3) {
+            return local.charAt(0) + "*".repeat(Math.max(1, local.length() - 1)) + domain;
+        }
+        int showStart = 2;
+        int showEnd   = 1;
+        String stars  = "*".repeat(local.length() - showStart - showEnd);
+        return local.substring(0, showStart) + stars + local.substring(local.length() - showEnd) + domain;
+    }
+
+    // 6자리 인증코드 생성 후 이메일 발송 (5분 유효)
+    public void sendVerificationCode(String email) {
+        userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("해당 이메일로 가입된 계정이 없습니다."));
+
+        String code = String.format("%06d", (int)(Math.random() * 1_000_000));
+        verifyCodeStore.put(email, new CodeRecord(code, LocalDateTime.now().plusMinutes(5)));
+
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setFrom(mailFrom);
+        msg.setTo(email);
+        msg.setSubject("[5분] 비밀번호 재설정 인증번호");
+        msg.setText("인증번호: " + code + "\n\n5분 이내에 입력해주세요.\n요청하지 않으셨다면 무시하세요.");
+        mailSender.send(msg);
+    }
+
+    // 인증코드 확인
+    public boolean verifyCode(String email, String code) {
+        CodeRecord record = verifyCodeStore.get(email);
+        if (record == null) return false;
+        if (LocalDateTime.now().isAfter(record.expiresAt())) {
+            verifyCodeStore.remove(email);
+            return false;
+        }
+        return record.code().equals(code);
+    }
+
+    // 인증코드 검증 후 비밀번호 재설정
+    @Transactional
+    public void resetPassword(String email, String code, String newPassword) {
+        if (!verifyCode(email, code)) {
+            throw new IllegalArgumentException("인증 코드가 올바르지 않거나 만료되었습니다.");
+        }
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        verifyCodeStore.remove(email);
     }
 }

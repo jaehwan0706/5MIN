@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert, Modal, TextInput,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Switch, Alert, Modal, TextInput, Platform,
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -262,10 +262,16 @@ export default function ProfileScreen({ onLogout, user, onUpdateUser }) {
 
       <TouchableOpacity
         style={[s.logoutBtn, { borderColor: t.border }]}
-        onPress={() => Alert.alert('로그아웃', '로그아웃 하시겠습니까?', [
-          { text: '취소', style: 'cancel' },
-          { text: '로그아웃', style: 'destructive', onPress: onLogout },
-        ])}
+        onPress={() => {
+          if (Platform.OS === 'web') {
+            if (window.confirm('로그아웃 하시겠습니까?')) onLogout();
+          } else {
+            Alert.alert('로그아웃', '로그아웃 하시겠습니까?', [
+              { text: '취소', style: 'cancel' },
+              { text: '로그아웃', style: 'destructive', onPress: onLogout },
+            ]);
+          }
+        }}
         activeOpacity={0.7}
       >
         <Text style={s.logoutTxt}>로그아웃</Text>

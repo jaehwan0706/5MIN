@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Ellipse, Rect, Defs, RadialGradient, Stop, LinearGradient } from 'react-native-svg';
 import * as WebBrowser from 'expo-web-browser';
 
-import { socialLogin } from '../api/userApi';
+import { socialLogin, login } from '../api/userApi';
 import { BASE_URL } from '../api/client';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -73,11 +73,20 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
   const [email, setEmail]               = useState('');
   const [password, setPassword]         = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
+  const [emailError, setEmailError]     = useState('');
 
   const handleEmailLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      setEmailError('이메일과 비밀번호를 입력해주세요.');
+      return;
+    }
+    setEmailError('');
     setEmailLoading(true);
     try {
-      await onLogin?.('email', { email, password });
+      const user = await login(email.trim(), password);
+      onLoginSuccess(user);
+    } catch (err) {
+      setEmailError(err.message || '일치하는 계정 정보가 없습니다.');
     } finally {
       setEmailLoading(false);
     }
@@ -120,10 +129,24 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
     }
   };
 
-  // --- 카카오 로그인 (백엔드가 중계) ---
+  // --- 카카오 로그인 ---
   const handleKakaoLogin = async () => {
+    if (Platform.OS === 'web') {
+      // 웹: Kakao OAuth redirect 방식 (SDK 불필요)
+      // Kakao 콘솔 → 카카오 로그인 → Redirect URI에 http://localhost:8081 등록 필요
+      const redirectUri = window.location.origin; // http://localhost:8081
+      window.location.href =
+        `https://kauth.kakao.com/oauth/authorize` +
+        `?client_id=${KAKAO_REST_API_KEY}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=code` +
+        `&scope=account_email,profile_nickname`;
+      return;
+    }
+
+    // 앱: 백엔드 중계 방식 (기존 유지)
+    const callbackUrl = BASE_URL + KAKAO_CALLBACK_PATH;
     try {
-      const callbackUrl = BASE_URL + KAKAO_CALLBACK_PATH;
       const authUrl =
         `https://kauth.kakao.com/oauth/authorize` +
         `?client_id=${KAKAO_REST_API_KEY}` +
@@ -178,10 +201,7 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
           </View>
           <TouchableOpacity
             style={s.loginBtn}
-            onPress={() => {
-              setEmailMode(v => !v);
-              onLogin?.('email');
-            }}
+            onPress={() => setEmailMode(v => !v)}
             activeOpacity={0.85}
           >
             <Text style={s.loginTxt}>이메일로 로그인</Text>
@@ -193,7 +213,7 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
                 placeholder="example@email.com"
                 placeholderTextColor="#BBBBBB"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={v => { setEmail(v); setEmailError(''); }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -203,7 +223,7 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
                 placeholder="비밀번호"
                 placeholderTextColor="#BBBBBB"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={v => { setPassword(v); setEmailError(''); }}
                 secureTextEntry
                 autoCorrect={false}
               />
@@ -217,6 +237,7 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
                   ? <ActivityIndicator color="#fff" />
                   : <Text style={s.emailSubmitTxt}>로그인</Text>}
               </TouchableOpacity>
+              {emailError ? <Text style={s.emailError}>{emailError}</Text> : null}
             </View>
           )}
           <View style={s.links}>
@@ -274,6 +295,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   emailSubmitTxt: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  emailError: { fontSize: 12, color: '#E24B4A', textAlign: 'center', marginTop: 2 },
   links:     { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 4 },
   linkTxt:   { fontSize: 13, color: '#888' },
   linkDot:   { fontSize: 13, color: '#ccc' },
