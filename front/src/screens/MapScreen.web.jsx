@@ -23,6 +23,11 @@ function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
   return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1);
 }
 
+// 직선거리 기반 차량 이동 시간 추정 (도로계수 1.3, 평균 30km/h)
+function estimateDriveMinutes(distKm) {
+  return Math.max(1, Math.round(parseFloat(distKm) * 1.3 / 30 * 60));
+}
+
 function makeSvgIcon(svgStr, size = 40) {
   const L = window.L;
   return L.divIcon({
@@ -62,6 +67,13 @@ export default function MapScreen({ userId }) {
   const leafletMapRef      = useRef(null);
   const userMarkerRef      = useRef(null);
   const hospitalMarkersRef = useRef([]);
+
+  const focusHospital = (h) => {
+    setSelected(h);
+    if (leafletMapRef.current) {
+      leafletMapRef.current.setView([h.lat, h.lng], 15, { animate: true });
+    }
+  };
 
   // Leaflet 로드 + 지도 초기화
   useEffect(() => {
@@ -114,14 +126,14 @@ export default function MapScreen({ userId }) {
       const marker = L.marker([h.lat, h.lng], { icon: makeSvgIcon(svg, 32) })
         .addTo(leafletMapRef.current)
         .bindPopup(h.name);
-      marker.on('click', () => setSelected(h));
+      marker.on('click', () => focusHospital(h));
       return marker;
     });
   }, [hospitals, mapReady]);
 
   const loadHospitals = async (lat, lng) => {
     try {
-      const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 5, 20);
+      const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 30, 50);
       let stage1 = '';
       try {
         const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
@@ -146,11 +158,12 @@ export default function MapScreen({ userId }) {
           else if (bedsCount <= 5) level = 'yellow';
           else                     level = 'green';
         }
+        const distKm = getDistanceFromLatLonInKm(lat, lng, dbHosp.wgs84Lat, dbHosp.wgs84Lon);
         return {
           id: dbHosp.hpid,
           name: dbHosp.dutyName,
-          dist: getDistanceFromLatLonInKm(lat, lng, dbHosp.wgs84Lat, dbHosp.wgs84Lon) + 'km',
-          wait: rTime ? '-' : '정보없음',
+          dist: distKm + 'km',
+          wait: estimateDriveMinutes(distKm),
           beds: bedsCount,
           tel: dbHosp.dutyTel1,
           lat: dbHosp.wgs84Lat,
@@ -219,7 +232,7 @@ export default function MapScreen({ userId }) {
           <Text style={[s.sectionTitle, { color: t.textSub, marginTop: 8 }]}>주변 응급실 전체</Text>
         )}
         {hospitals.filter(h => h.id !== selected?.id).map(h => (
-          <TouchableOpacity key={h.id} onPress={() => setSelected(h)} style={s.listRow}>
+          <TouchableOpacity key={h.id} onPress={() => focusHospital(h)} style={s.listRow}>
             <View style={[s.dot, { backgroundColor: LEVEL_COLOR[h.level] }]} />
             <Text style={[s.listName, { color: t.text }]}>{h.name}</Text>
             <Text style={[s.listMeta, { color: t.textSub }]}>{h.dist}</Text>
