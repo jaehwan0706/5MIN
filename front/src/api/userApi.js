@@ -71,3 +71,11 @@ export function resetPassword(email, code, newPassword) {
     body: JSON.stringify({ email, code, newPassword }),
   });
 }
+
+// 구글 로그인 (인가 코드 + redirect URI → 백엔드 토큰 교환)
+export function googleLogin(code, redirectUri) {
+  return apiFetch('/api/user/login/google', {
+    method: 'POST',
+    body: JSON.stringify({ code, redirectUri }),
+  });
+}

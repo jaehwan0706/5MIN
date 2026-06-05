@@ -66,6 +66,19 @@ public class UserController {
         }
     }
 
+    // 구글 로그인 (인가 코드로 처리) — 웹 redirect 콜백용
+    @PostMapping("/login/google")
+    public ResponseEntity<Map<String, Object>> googleLogin(@Valid @RequestBody KakaoLoginRequest req) {
+        try {
+            User user = userService.loginWithGoogle(req.code, req.redirectUri);
+            return ResponseEntity.ok(toUserResponse(user, "구글 로그인 성공"));
+        } catch (Exception e) {
+            Map<String, Object> error = new LinkedHashMap<>();
+            error.put("error", "구글 로그인 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.status(500).body(error);
+        }
+    }
+
     // 카카오 전용 로그인 (인가 코드로 처리)
     @PostMapping("/login/kakao")
     public ResponseEntity<Map<String, Object>> kakaoLogin(@Valid @RequestBody KakaoLoginRequest req) {

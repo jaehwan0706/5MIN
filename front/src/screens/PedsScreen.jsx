@@ -48,29 +48,38 @@ export default function PedsScreen() {
       const mapped = nearbyDbHospitals
         .map(dbHosp => {
           const rTime = realtimePeds.find(b => b.hpid === dbHosp.hpid);
-          if (!rTime && !dbHosp.dutyEmclsName?.includes('소아')) return null;
 
-          let bedsCount = 0;
+          // 실시간 데이터도 없고 이름에 소아 관련 키워드도 없으면 제외
+          const nameBasedPeds =
+            dbHosp.dutyEmclsName?.includes('소아') ||
+            dbHosp.dutyName?.includes('소아') ||
+            dbHosp.dutyName?.includes('어린이');
+          if (!rTime && !nameBasedPeds) return null;
+
+          // 소아 병상: hvpaypen(소아과 입원) + hv28(소아응급실) + hvoc(소아과 외래) 합산
+          const pedBedsAdmit = parseInt(rTime?.hvpaypen || 0, 10);
+          const pedBedsEr    = parseInt(rTime?.hv28     || 0, 10);
+          const pedBedsOpc   = parseInt(rTime?.hvoc     || 0, 10);
+          const bedsCount = pedBedsAdmit + pedBedsEr + pedBedsOpc;
+
           let level = 'green';
           if (rTime) {
-            // hv28: 소아 응급실 병상 (공공데이터 기준)
-            bedsCount = parseInt(rTime.hv28 || 0, 10);
-            if (bedsCount < 1) level = 'red';
+            if (bedsCount < 1)      level = 'red';
             else if (bedsCount <= 3) level = 'yellow';
-            else level = 'green';
+            else                     level = 'green';
           }
 
           return {
-            id: dbHosp.hpid,
-            name: dbHosp.dutyName,
-            tel: dbHosp.dutyTel1,
-            level: level,
-            pedBeds: bedsCount,
-            wait: '-',
-            peds: true,
-            er24: true, // 응급실 기본값
+            id:        dbHosp.hpid,
+            name:      dbHosp.dutyName,
+            tel:       dbHosp.dutyTel1,
+            level,
+            pedBeds:   bedsCount,
+            wait:      '-',
+            peds:      true,
+            er24:      true,
             moonBadge: dbHosp.dutyName?.includes('달빛') || false,
-            warning: rTime ? null : '실시간 정보 없음',
+            warning:   rTime ? null : '실시간 정보 없음',
           };
         })
         .filter(h => h !== null);

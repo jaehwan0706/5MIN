@@ -97,17 +97,15 @@ export default function MapScreen({ userId }) {
       const mappedHospitals = nearbyDbHospitals.map(dbHosp => {
         const rTime = realtimeBeds.find(b => b.hpid === dbHosp.hpid);
         let bedsCount = 0;
-        let level = 'green';
+        let level = 'unknown';
         let warning = null;
         let isER24 = false;
 
         if (rTime) {
-          // hvec: 일반 응급실 병상
           bedsCount = parseInt(rTime.hvec || 0, 10);
-          
-          if (bedsCount < 3) level = 'red';
+          if (bedsCount < 3)      level = 'red';
           else if (bedsCount <= 5) level = 'yellow';
-          else level = 'green';
+          else                     level = 'green';
         }
 
         const distKm = parseFloat(getDistanceFromLatLonInKm(lat, lng, dbHosp.wgs84Lat, dbHosp.wgs84Lon));

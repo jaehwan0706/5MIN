@@ -4,13 +4,21 @@ import Constants from 'expo-constants';
 const getBaseUrl = () => {
   // 1. 웹 브라우저 환경인 경우
   if (typeof window !== 'undefined' && window.location) {
+    // HTTPS(Expo 터널 등)에서는 ngrok URL 사용 (Mixed Content 방지)
+    if (window.location.protocol === 'https:') {
+      return 'https://filtrate-shortcake-hardening.ngrok-free.dev';
+    }
     return `http://${window.location.hostname}:8080`;
   }
 
   // 2. 모바일(Expo) 환경인 경우
-  // debuggerHost는 '172.29.98.149:8081' 같은 형식으로 나옵니다.
   const debuggerHost = Constants.expoConfig?.hostUri;
   if (debuggerHost) {
+    // 터널 모드(exp.direct)는 IP 추출 불가 → ngrok 사용
+    if (debuggerHost.includes('.exp.direct')) {
+      return 'https://filtrate-shortcake-hardening.ngrok-free.dev';
+    }
+    // LAN 모드: '172.29.98.149:8081' 형식에서 IP 추출
     const ip = debuggerHost.split(':')[0];
     return `http://${ip}:8080`;
   }
@@ -27,7 +35,7 @@ export async function apiFetch(path, options = {}) {
   let res;
   try {
     res = await fetch(url, {
-      headers: { 'Content-Type': 'application/json', ...options.headers },
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...options.headers },
       ...options,
     });
   } catch {

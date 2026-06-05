@@ -18,12 +18,9 @@ const { width } = Dimensions.get('window');
 const KAKAO_REST_API_KEY = '6f1d69aede1067d118624fc26d3deee1';
 const GOOGLE_CLIENT_ID = '612745898680-79ji2g4q9vv68888dvquaqm9du6vk362.apps.googleusercontent.com';
 
-const KAKAO_CALLBACK_PATH = '/api/user/kakao/oauth-callback';
-
-// Google은 IP redirect URI를 거부 → ngrok 정적 도메인 사용
-// ngrok 세팅: https://ngrok.com → 무료 가입 → Domains → 고정 도메인 발급
-// 실행 명령: ngrok http 8080 --domain=YOUR-DOMAIN.ngrok-free.app
-const GOOGLE_CALLBACK_URL = 'https://YOUR-DOMAIN.ngrok-free.app/api/user/google/oauth-callback';
+const NGROK_BASE = 'https://filtrate-shortcake-hardening.ngrok-free.dev';
+const KAKAO_CALLBACK_URL  = `${NGROK_BASE}/api/user/kakao/oauth-callback`;
+const GOOGLE_CALLBACK_URL = `${NGROK_BASE}/api/user/google/oauth-callback`;
 
 // BASE_URL(http://IP:8080)에서 IP를 뽑아 Expo Go deep link 주소 생성
 const getExpUrl = () => {
@@ -105,7 +102,8 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
     const result = await WebBrowser.openAuthSessionAsync(fullUrl, expUrl);
     if (result.type !== 'success' || !result.url) return;
 
-    const query  = result.url.includes('?') ? result.url.split('?')[1] : '';
+    const rawQuery = result.url.includes('?') ? result.url.split('?')[1] : '';
+    const query  = rawQuery.split('#')[0];
     const params = new URLSearchParams(query);
     const errorMsg = params.get('error');
     const userJson = params.get('user');
@@ -114,8 +112,20 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
     if (userJson)  { onLoginSuccess(JSON.parse(decodeURIComponent(userJson))); }
   };
 
-  // --- 구글 로그인 (백엔드가 중계, localhost → ADB: adb reverse tcp:8080 tcp:8080) ---
+  // --- 구글 로그인 ---
   const handleGoogleLogin = async () => {
+    if (Platform.OS === 'web') {
+      const state = btoa(JSON.stringify({ returnUrl: window.location.origin, callbackUrl: GOOGLE_CALLBACK_URL }));
+      window.location.href =
+        `https://accounts.google.com/o/oauth2/v2/auth` +
+        `?client_id=${GOOGLE_CLIENT_ID}` +
+        `&redirect_uri=${encodeURIComponent(GOOGLE_CALLBACK_URL)}` +
+        `&response_type=code` +
+        `&scope=email%20profile` +
+        `&state=${encodeURIComponent(state)}`;
+      return;
+    }
+    // 앱: 기존 백엔드 중계 방식 (ngrok 필요)
     try {
       const authUrl =
         `https://accounts.google.com/o/oauth2/v2/auth` +
@@ -132,27 +142,25 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
   // --- 카카오 로그인 ---
   const handleKakaoLogin = async () => {
     if (Platform.OS === 'web') {
-      // 웹: Kakao OAuth redirect 방식 (SDK 불필요)
-      // Kakao 콘솔 → 카카오 로그인 → Redirect URI에 http://localhost:8081 등록 필요
-      const redirectUri = window.location.origin; // http://localhost:8081
+      const state = btoa(JSON.stringify({ returnUrl: window.location.origin, callbackUrl: KAKAO_CALLBACK_URL }));
       window.location.href =
         `https://kauth.kakao.com/oauth/authorize` +
         `?client_id=${KAKAO_REST_API_KEY}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&redirect_uri=${encodeURIComponent(KAKAO_CALLBACK_URL)}` +
         `&response_type=code` +
-        `&scope=account_email,profile_nickname`;
+        `&scope=account_email,profile_nickname` +
+        `&state=${encodeURIComponent(state)}`;
       return;
     }
 
-    // 앱: 백엔드 중계 방식 (기존 유지)
-    const callbackUrl = BASE_URL + KAKAO_CALLBACK_PATH;
+    // 앱: 백엔드 중계 방식 (ngrok 사용)
     try {
       const authUrl =
         `https://kauth.kakao.com/oauth/authorize` +
         `?client_id=${KAKAO_REST_API_KEY}` +
         `&response_type=code` +
         `&scope=account_email,profile_nickname`;
-      await openOAuthSession(authUrl, callbackUrl);
+      await openOAuthSession(authUrl, KAKAO_CALLBACK_URL);
     } catch (error) {
       console.error('[5MIN] Kakao Login Error:', error);
       Alert.alert('로그인 오류', error.message || '카카오 로그인에 실패했습니다.');

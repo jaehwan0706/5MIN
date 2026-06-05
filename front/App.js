@@ -18,7 +18,7 @@ import SignUpScreen      from './src/screens/SignUpScreen';
 import SocialSignupScreen from './src/screens/SocialSignupScreen';
 import FindAccountScreen from './src/screens/FindAccountScreen';
 import SplashScreen      from './src/screens/SplashScreen';
-import { updateLocation, kakaoLogin } from './src/api/userApi';
+import { updateLocation, kakaoLogin, googleLogin } from './src/api/userApi';
 import { Ionicons } from '@expo/vector-icons';
 
 const USER_KEY = 'fivemin_user';
@@ -44,20 +44,26 @@ function Main() {
         return;
       }
 
-      // 카카오 로그인 redirect 후 ?code= 파라미터 처리
+      // 카카오/구글 OAuth redirect 후 ?code= 파라미터 처리
+      // state=google 이면 구글, 아니면 카카오
       if (code) {
         window.history.replaceState({}, '', window.location.pathname);
         const redirectUri = window.location.origin;
-        kakaoLogin(code, redirectUri)
+        const state = params.get('state');
+        const loginFn = state === 'google'
+          ? googleLogin(code, redirectUri)
+          : kakaoLogin(code, redirectUri);
+
+        loginFn
           .then(userData => {
             setUser(userData);
             setAuth(userData.infoCompleted ? 'app' : 'social_signup');
           })
           .catch(err => {
-            console.error('[5MIN] Kakao code exchange error:', err);
+            console.error('[5MIN] OAuth code exchange error:', err);
             setAuth('login');
           });
-        return; // auth는 'loading' 유지 → 위 then/catch에서 변경
+        return;
       }
 
       if (userJson) {

@@ -3,21 +3,24 @@ export const HOSPITALS = [
 ];
 
 export const LEVEL_COLOR = {
-  green: '#1D9E75',
-  yellow: '#BA7517',
-  red:    '#E24B4A',
+  green:   '#1D9E75',
+  yellow:  '#BA7517',
+  red:     '#E24B4A',
+  unknown: '#AAAAAA',
 };
 
 export const LEVEL_BG = {
-  green: '#EAF3DE',
-  yellow: '#FAEEDA',
-  red:   '#FCEBEB',
+  green:   '#EAF3DE',
+  yellow:  '#FAEEDA',
+  red:     '#FCEBEB',
+  unknown: '#F0F0F0',
 };
 
 export const LEVEL_LABEL = {
-  green: '여유',
-  yellow: '보통',
-  red:   '혼잡',
+  green:   '여유',
+  yellow:  '보통',
+  red:     '혼잡',
+  unknown: '정보없음',
 };
 
 export const SYMPTOMS = [

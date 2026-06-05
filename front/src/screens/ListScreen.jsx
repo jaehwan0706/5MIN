@@ -88,10 +88,22 @@ export default function ListScreen() {
           else level = 'green';
         }
 
+        // 소아 진료 가능 여부: 실시간 소아 병상 우선, 없으면 병원명으로 판단
+        const pedBedsAdmit = parseInt(rTime?.hvpaypen || 0, 10);
+        const pedBedsEr    = parseInt(rTime?.hv28     || 0, 10);
+        const pedBedsOpc   = parseInt(rTime?.hvoc     || 0, 10);
+        const pedBeds = pedBedsAdmit + pedBedsEr + pedBedsOpc;
+        const nameBasedPeds = !!(
+          dbHosp.dutyEmclsName?.includes('소아') ||
+          dbHosp.dutyName?.includes('소아') ||
+          dbHosp.dutyName?.includes('어린이')
+        );
+
         const distKm = parseFloat(getDistanceFromLatLonInKm(lat, lng, dbHosp.wgs84Lat, dbHosp.wgs84Lon));
         return {
           id:   dbHosp.hpid,
           name: dbHosp.dutyName,
+          addr: dbHosp.dutyAddr || '',
           dist: distKm + 'km',
           wait: estimateDriveMinutes(distKm),
           beds: bedsCount,
@@ -99,7 +111,7 @@ export default function ListScreen() {
           lat:  dbHosp.wgs84Lat,
           lng:  dbHosp.wgs84Lon,
           level,
-          peds: !!(dbHosp.dutyEmclsName?.includes('소아') || dbHosp.dutyName?.includes('소아') || dbHosp.dutyName?.includes('어린이')),
+          peds: rTime ? pedBeds > 0 : nameBasedPeds,
         };
       });
 
@@ -132,9 +144,11 @@ export default function ListScreen() {
     if (filter === 'green') return h.level === 'green';
     if (filter === 'peds')  return h.peds;
     return true;
-  }).filter(h =>
-    query.trim() === '' || h.name.toLowerCase().includes(query.trim().toLowerCase())
-  );
+  }).filter(h => {
+    if (query.trim() === '') return true;
+    const q = query.trim().toLowerCase();
+    return h.name.toLowerCase().includes(q) || h.addr.toLowerCase().includes(q);
+  });
 
   if (loading) {
     return (
@@ -152,7 +166,7 @@ export default function ListScreen() {
           <Ionicons name="search-outline" size={16} color={t.textSub} style={{ marginRight: 6 }} />
           <TextInput
             style={[s.searchInput, { color: t.text }]}
-            placeholder="병원 이름 검색"
+            placeholder="병원 이름 또는 지역 검색"
             placeholderTextColor={t.textSub}
             value={query}
             onChangeText={setQuery}
