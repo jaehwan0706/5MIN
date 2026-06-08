@@ -6,8 +6,8 @@ const getBaseUrl = () => {
   if (typeof window !== 'undefined' && window.location) {
     // HTTPS(Expo 터널 등)에서는 ngrok URL 사용 (Mixed Content 방지)
     if (window.location.protocol === 'https:') {
-      return 'https://filtrate-shortcake-hardening.ngrok-free.dev';
-    }
+  return 'https://api-5min.kro.kr';
+  }
     return `http://${window.location.hostname}:8080`;
   }
 
@@ -16,8 +16,8 @@ const getBaseUrl = () => {
   if (debuggerHost) {
     // 터널 모드(exp.direct)는 IP 추출 불가 → ngrok 사용
     if (debuggerHost.includes('.exp.direct')) {
-      return 'https://filtrate-shortcake-hardening.ngrok-free.dev';
-    }
+  return 'https://api-5min.kro.kr';
+  }
     // LAN 모드: '172.29.98.149:8081' 형식에서 IP 추출
     const ip = debuggerHost.split(':')[0];
     return `http://${ip}:8080`;
