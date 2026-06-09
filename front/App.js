@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, StatusBar, ActivityIndicator, Platform } from '
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
+import * as Font from 'expo-font';
 
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import BottomNav         from './src/components/BottomNav';
@@ -23,19 +24,28 @@ import { Ionicons } from '@expo/vector-icons';
 
 const USER_KEY = 'fivemin_user';
 
-// auth 상태: 'loading' | 'login' | 'email_login' | 'signup' | 'social_signup' | 'find' | 'app'
 function Main() {
   const { theme: t, isDark } = useTheme();
   const [auth, setAuth] = useState('loading');
   const [tab, setTab]   = useState('map');
-  const [user, setUser] = useState(null); // { id, name, email }
+  const [user, setUser] = useState(null);
+  const [fontsLoaded, setFontsLoaded] = useState(false);
 
-  // 앱 시작 시 저장된 사용자 확인
+  // 폰트 로드
+  useEffect(() => {
+    Font.loadAsync({
+      'MaterialIcons': require('./assets/fonts/MaterialIcons.ttf'),
+      'Ionicons': require('./assets/fonts/Ionicons.ttf'),
+      'FontAwesome': require('./assets/fonts/FontAwesome.ttf'),
+    }).then(() => setFontsLoaded(true))
+      .catch(() => setFontsLoaded(true)); // 실패해도 앱은 계속 실행
+  }, []);
+
   useEffect(() => {
     if (Platform.OS === 'web') {
       const params     = new URLSearchParams(window.location.search);
-      const code       = params.get('code');    // 카카오 OAuth redirect 콜백
-      const userJson   = params.get('user');    // 백엔드 중계 콜백 (앱용 호환)
+      const code       = params.get('code');
+      const userJson   = params.get('user');
       const errorParam = params.get('error');
 
       if (errorParam) {
@@ -44,8 +54,6 @@ function Main() {
         return;
       }
 
-      // 카카오/구글 OAuth redirect 후 ?code= 파라미터 처리
-      // state=google 이면 구글, 아니면 카카오
       if (code) {
         window.history.replaceState({}, '', window.location.pathname);
         const redirectUri = window.location.origin;
@@ -101,7 +109,6 @@ function Main() {
     })();
   }, []);
 
-  // 로그인 상태로 진입하면 GPS 위치 갱신
   useEffect(() => {
     if (auth !== 'app' || !user?.id) return;
     (async () => {
@@ -141,8 +148,7 @@ function Main() {
     saveUser(userData);
   };
 
-  /* ── 로딩 ── */
-  if (auth === 'loading') {
+  if (auth === 'loading' || !fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAFA' }}>
         <ActivityIndicator size="large" color="#E24B4A" />
@@ -150,7 +156,6 @@ function Main() {
     );
   }
 
-  /* ── 인증 플로우 ── */
   if (auth === 'login') {
     return (
       <LoginScreen
@@ -190,7 +195,6 @@ function Main() {
     return <FindAccountScreen onBack={() => setAuth('login')} />;
   }
 
-  /* ── 메인 앱 ── */
   const renderScreen = () => {
     switch (tab) {
       case 'list':    return <ListScreen />;

@@ -39,11 +39,8 @@
       ]
     },
     "web": {
-     "bundler": "metro",
-    "favicon": "./assets/icon.png",
-    "fonts": [
-      "https://fonts.gstatic.com/s/materialicons/v140/flUhRq6tzZclQEJ-Vdg-IuiaDsNcIhQ8tQ.woff2"
-  ]
+      "bundler": "metro",
+      "favicon": "./assets/icon.png"
     },
     "plugins": [
       "expo-web-browser"
