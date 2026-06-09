@@ -1,5 +1,9 @@
 server:
-  port: 8080
+    port: 8443
+    ssl:
+      key-store: /home/ubuntu/keystore.p12
+      key-store-password: fivemin1234
+      key-store-type: PKCS12
 
 emergency:
   api:
