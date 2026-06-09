@@ -31,14 +31,18 @@ function Main() {
   const [user, setUser] = useState(null);
   const [fontsLoaded, setFontsLoaded] = useState(false);
 
-  // 폰트 로드
   useEffect(() => {
     Font.loadAsync({
       'MaterialIcons': require('./assets/fonts/MaterialIcons.ttf'),
       'Ionicons': require('./assets/fonts/Ionicons.ttf'),
       'FontAwesome': require('./assets/fonts/FontAwesome.ttf'),
+      'MaterialCommunityIcons': require('./assets/fonts/MaterialCommunityIcons.ttf'),
+      'AntDesign': require('./assets/fonts/AntDesign.ttf'),
+      'Feather': require('./assets/fonts/Feather.ttf'),
+      'FontAwesome5_Regular': require('./assets/fonts/FontAwesome5_Regular.ttf'),
+      'FontAwesome5_Solid': require('./assets/fonts/FontAwesome5_Solid.ttf'),
     }).then(() => setFontsLoaded(true))
-      .catch(() => setFontsLoaded(true)); // 실패해도 앱은 계속 실행
+      .catch(() => setFontsLoaded(true));
   }, []);
 
   useEffect(() => {
