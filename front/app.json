@@ -40,7 +40,10 @@
     },
     "web": {
      "bundler": "metro",
-     "favicon": "./assets/icon.png"
+    "favicon": "./assets/icon.png",
+    "fonts": [
+      "https://fonts.gstatic.com/s/materialicons/v140/flUhRq6tzZclQEJ-Vdg-IuiaDsNcIhQ8tQ.woff2"
+  ]
     },
     "plugins": [
       "expo-web-browser"
