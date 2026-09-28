@@ -1,23 +1,21 @@
 server:
-    port: 8443
-    ssl:
-      key-store: /home/ubuntu/keystore.p12
-      key-store-password: fivemin1234
-      key-store-type: PKCS12
+  # Render가 PORT 환경변수를 넣어줌 (HTTPS는 Render가 앞단에서 처리하므로 SSL 설정 불필요)
+  port: ${PORT:8080}
+  forward-headers-strategy: framework
 
 emergency:
   api:
-    key: c5e86d930b554a88a7bf9e2b1a1311b3477e8d45d211f5b76c947a4dd7f1b2a5
+    key: ${EMERGENCY_API_KEY}
 
 kakao:
   rest:
-    key: 6f1d69aede1067d118624fc26d3deee1
-    secret: uq9uNWaeGMUoLPtJWX0jXX3ivh9mXxqN
+    key: ${KAKAO_REST_KEY}
+    secret: ${KAKAO_REST_SECRET}
 
 google:
   client:
-    id: admin
-    secret: admin
+    id: ${GOOGLE_CLIENT_ID}
+    secret: ${GOOGLE_CLIENT_SECRET}
 
 spring:
   profiles:
@@ -25,8 +23,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: admin@gmail.com
-    password: admin
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -34,17 +32,20 @@ spring:
           starttls:
             enable: true
   datasource:
-    url: jdbc:mysql://fivemin-db.clgowq824mdk.ap-northeast-2.rds.amazonaws.com:3306/fivemin?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
-    username: admin
-    password: admin12345
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    # Supabase Session pooler 주소 (Render는 IPv6 미지원이라 Direct connection 대신 pooler 사용)
+    # 예: jdbc:postgresql://aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres?sslmode=require
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
-    database-platform: org.hibernate.dialect.MySQLDialect
+    show-sql: false
 
 jwt:
-  secret: fivemin-secret-key-2026-emergency-app-minimum-256-bits-long
+  secret: ${JWT_SECRET}
   expiration: 3600000        # 액세스 토큰 만료시간 1시간 (ms)
   refresh-expiration: 2592000000  # 리프레시 토큰 만료시간 30일 (ms)

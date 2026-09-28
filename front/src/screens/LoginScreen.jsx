@@ -18,7 +18,8 @@ const { width } = Dimensions.get('window');
 const KAKAO_REST_API_KEY = '6f1d69aede1067d118624fc26d3deee1';
 const GOOGLE_CLIENT_ID = '612745898680-79ji2g4q9vv68888dvquaqm9du6vk362.apps.googleusercontent.com';
 
-const NGROK_BASE = 'https://api-5min.kro.kr:8443';
+// OAuth 콜백은 백엔드(Render) 주소 기준 — Kakao/Google 콘솔의 Redirect URI 에도 동일하게 등록해야 함
+const NGROK_BASE = BASE_URL;
 const KAKAO_CALLBACK_URL  = `${NGROK_BASE}/api/user/kakao/oauth-callback`;
 const GOOGLE_CALLBACK_URL = `${NGROK_BASE}/api/user/google/oauth-callback`;
 

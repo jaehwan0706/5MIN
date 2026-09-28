@@ -24,9 +24,9 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
-	// JPA + MySQL
+	// JPA + PostgreSQL (Supabase)
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	runtimeOnly 'com.mysql:mysql-connector-j'
+	runtimeOnly 'org.postgresql:postgresql'
 	// JSON 파싱
 	implementation 'org.json:json:20240303'
 	// 입력값 검증

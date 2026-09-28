@@ -1,0 +1,5 @@
+build
+bin
+.gradle
+node_modules
+src/main/resources/application-local.yml

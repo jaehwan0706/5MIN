@@ -1,23 +1,21 @@
 import Constants from 'expo-constants';
 
+// 배포된 백엔드(Render) 주소. Vercel 환경변수 EXPO_PUBLIC_API_URL 로 주입 (빌드 시점에 번들에 포함됨)
+export const PROD_API_URL = (process.env.EXPO_PUBLIC_API_URL || '').replace(/\/$/, '');
+
 // 백엔드 서버 주소 동적 결정 (어떤 와이파이에서든 작동하도록)
 const getBaseUrl = () => {
+  // 0. 배포 주소가 지정되어 있으면 항상 사용
+  if (PROD_API_URL) return PROD_API_URL;
+
   // 1. 웹 브라우저 환경인 경우
   if (typeof window !== 'undefined' && window.location) {
-    // HTTPS(Expo 터널 등)에서는 ngrok URL 사용 (Mixed Content 방지)
-    if (window.location.protocol === 'https:') {
-  return 'https://api-5min.kro.kr:8443';
-  }
     return `http://${window.location.hostname}:8080`;
   }
 
   // 2. 모바일(Expo) 환경인 경우
   const debuggerHost = Constants.expoConfig?.hostUri;
   if (debuggerHost) {
-    // 터널 모드(exp.direct)는 IP 추출 불가 → ngrok 사용
-    if (debuggerHost.includes('.exp.direct')) {
-  return 'https://api-5min.kro.kr:8443';
-  }
     // LAN 모드: '172.29.98.149:8081' 형식에서 IP 추출
     const ip = debuggerHost.split(':')[0];
     return `http://${ip}:8080`;
