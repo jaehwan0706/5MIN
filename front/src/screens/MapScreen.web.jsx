@@ -8,7 +8,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import HospitalCard from '../components/HospitalCard';
 import { LEVEL_COLOR, LEVEL_LABEL } from '../constants/hospitals';
-import { fetchNearbyHospitals, fetchRealtimeBeds } from '../api/hospitalApi';
+import { fetchNearbyHospitals, fetchRealtimeBeds, getRegion } from '../api/hospitalApi';
 
 const DEFAULT_LOCATION = { latitude: 37.5665, longitude: 126.9780 };
 
@@ -134,11 +134,7 @@ export default function MapScreen({ userId }) {
   const loadHospitals = async (lat, lng) => {
     try {
       const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 30, 50);
-      let stage1 = '';
-      try {
-        const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
-        if (geocode?.length > 0) stage1 = geocode[0].region || geocode[0].city || '';
-      } catch (e) {}
+      const stage1 = await getRegion(lat, lng, nearbyDbHospitals);
 
       let realtimeBeds = [];
       try {

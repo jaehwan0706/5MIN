@@ -5,7 +5,7 @@ import { useTheme } from '../theme/ThemeContext';
 import HospitalCard from '../components/HospitalCard';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { fetchNearbyHospitals, fetchRealtimeBeds } from '../api/hospitalApi';
+import { fetchNearbyHospitals, fetchRealtimeBeds, getRegion } from '../api/hospitalApi';
 
 const FAV_KEY = 'fivemin_favorites';
 
@@ -62,8 +62,7 @@ export default function ListScreen() {
       // 반경 500km (한국 전체), 최대 500개
       const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 500, 500);
 
-      const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
-      const stage1 = geocode[0]?.region || geocode[0]?.city || '';
+      const stage1 = await getRegion(lat, lng, nearbyDbHospitals);
 
       let realtimeBeds = [];
       try {

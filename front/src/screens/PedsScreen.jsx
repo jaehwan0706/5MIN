@@ -6,7 +6,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { LEVEL_COLOR, LEVEL_LABEL } from '../constants/hospitals';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { fetchNearbyHospitals, fetchRealtimePediatricBeds } from '../api/hospitalApi';
+import { fetchNearbyHospitals, fetchRealtimePediatricBeds, getRegion } from '../api/hospitalApi';
 
 export default function PedsScreen() {
   const { theme: t } = useTheme();
@@ -30,8 +30,7 @@ export default function PedsScreen() {
       const nearbyDbHospitals = await fetchNearbyHospitals(lat, lng, 20, 50);
       
       // 2. 소아 응급실 실시간 정보 조회
-      const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
-      let stage1 = geocode[0]?.region || geocode[0]?.city || '';
+      const stage1 = await getRegion(lat, lng, nearbyDbHospitals);
 
       let realtimePeds = [];
       try {
