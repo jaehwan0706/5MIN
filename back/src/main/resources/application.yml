@@ -5,17 +5,17 @@ server:
 
 emergency:
   api:
-    key: ${EMERGENCY_API_KEY}
+    key: ${EMERGENCY_API_KEY:}
 
 kakao:
   rest:
-    key: ${KAKAO_REST_KEY}
-    secret: ${KAKAO_REST_SECRET}
+    key: ${KAKAO_REST_KEY:}
+    secret: ${KAKAO_REST_SECRET:}
 
 google:
   client:
-    id: ${GOOGLE_CLIENT_ID}
-    secret: ${GOOGLE_CLIENT_SECRET}
+    id: ${GOOGLE_CLIENT_ID:}
+    secret: ${GOOGLE_CLIENT_SECRET:}
 
 spring:
   profiles:
@@ -23,8 +23,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
