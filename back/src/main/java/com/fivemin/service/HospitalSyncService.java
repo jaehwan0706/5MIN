@@ -3,6 +3,8 @@ package com.fivemin.service;
 import com.fivemin.entity.Hospital;
 import com.fivemin.repository.HospitalRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -26,6 +28,24 @@ public class HospitalSyncService {
     public HospitalSyncService(RestTemplate restTemplate, HospitalRepository hospitalRepository) {
         this.restTemplate = restTemplate;
         this.hospitalRepository = hospitalRepository;
+    }
+
+    // 서버 기동 시 병원 데이터가 없거나 하루 이상 지났으면 백그라운드로 동기화
+    // (Render 무료 플랜은 유휴 시 잠들어 새벽 3시 스케줄이 실행되지 않을 수 있음)
+    @EventListener(ApplicationReadyEvent.class)
+    public void syncOnStartup() {
+        boolean stale = hospitalRepository.findTopByOrderByUpdatedAtDesc()
+                .map(h -> h.getUpdatedAt() == null || h.getUpdatedAt().isBefore(LocalDateTime.now().minusDays(1)))
+                .orElse(true);
+        if (!stale) return;
+
+        new Thread(() -> {
+            try {
+                syncHospitals();
+            } catch (Exception e) {
+                System.out.println("[5MIN] 기동 시 병원 정보 동기화 실패: " + e.getMessage());
+            }
+        }, "hospital-sync").start();
     }
 
     // 매일 새벽 3시에 자동 실행

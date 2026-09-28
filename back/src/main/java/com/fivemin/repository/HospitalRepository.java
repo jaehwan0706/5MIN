@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.util.Optional;
 
 // 병원 정보 DB 저장/조회 담당
 @Repository
@@ -36,4 +37,7 @@ public interface HospitalRepository extends JpaRepository<Hospital, String> {
             @Param("radius") double radius,
             @Param("limitCount") int limitCount
     );
+
+    // 가장 최근에 갱신된 병원 (동기화 필요 여부 판단용)
+    Optional<Hospital> findTopByOrderByUpdatedAtDesc();
 }
