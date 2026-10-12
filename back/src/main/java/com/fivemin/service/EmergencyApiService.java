@@ -11,10 +11,15 @@ import org.springframework.web.util.UriComponentsBuilder;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import jakarta.annotation.PreDestroy;
+
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class EmergencyApiService {
@@ -63,9 +68,19 @@ public class EmergencyApiService {
     // 외부 API 호출에 사용할 RestTemplate Bean입니다.
     private final RestTemplate restTemplate;
 
+    // 시군구별 API를 병렬 호출할 스레드 풀입니다.
+    // 공공데이터 API에 요청이 한꺼번에 몰리지 않도록 동시 호출 수를 제한합니다.
+    private static final int MAX_CONCURRENT_CALLS = 8;
+    private final ExecutorService apiExecutor = Executors.newFixedThreadPool(MAX_CONCURRENT_CALLS);
+
     // 생성자 주입으로 RestTemplate을 전달받습니다.
     public EmergencyApiService(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
+    }
+
+    @PreDestroy
+    void shutdownExecutor() {
+        apiExecutor.shutdown();
     }
 
     // [Tab01/Tab03] 실시간 응급실 병상 정보를 조회합니다. stage2가 없으면 해당 시도 전체를 조회합니다.
@@ -155,12 +170,18 @@ public class EmergencyApiService {
             return callEmergencyApi(uri);
         }
 
+        // 시군구별 호출을 순차(25회 × 약 0.4초)가 아닌 병렬로 실행한 뒤, 시군구 순서대로 합칩니다.
+        List<CompletableFuture<String>> futures = districts.stream()
+                .map(district -> CompletableFuture.supplyAsync(
+                        () -> callEmergencyApi(buildAreaUri(endpoint, normalizedStage1, district)),
+                        apiExecutor))
+                .toList();
+
         StringBuilder items = new StringBuilder();
         int totalCount = 0;
 
-        for (String district : districts) {
-            URI uri = buildAreaUri(endpoint, normalizedStage1, district);
-            String response = callEmergencyApi(uri);
+        for (CompletableFuture<String> future : futures) {
+            String response = future.join();
             totalCount += extractTotalCount(response);
             appendItems(items, response);
         }

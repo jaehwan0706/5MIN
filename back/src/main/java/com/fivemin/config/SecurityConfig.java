@@ -42,7 +42,9 @@ public class SecurityConfig {
                     "/api/user/**",
                     "/api/hospital/**",
                     "/api/emergency/**",
-                    "/api/symptoms/**"
+                    "/api/symptoms/**",
+                    // 처리되지 않은 예외는 /error 로 포워딩되는데, 막혀 있으면 실제 500 에러가 403으로 가려짐
+                    "/error"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
