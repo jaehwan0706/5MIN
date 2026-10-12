@@ -28,11 +28,41 @@ const getBaseUrl = () => {
 export const BASE_URL = getBaseUrl();
 console.log('[5MIN] API Base URL:', BASE_URL);
 
+// ── 서버 깨우는 중 감지 ──
+// Render 무료 플랜은 유휴 시 잠들어 첫 요청이 최대 1분 걸림.
+// 요청이 SLOW_MS 이상 걸리면 구독자(ServerWakeBanner)에게 알려 안내 문구를 띄운다.
+const SLOW_MS = 4000;
+let slowCount = 0;
+const listeners = new Set();
+const notify = () => listeners.forEach(fn => fn(slowCount > 0));
+
+export function subscribeServerWaking(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+// 모든 백엔드 요청은 이 함수를 거친다
+export async function serverFetch(url, options) {
+  let isSlow = false;
+  const timer = setTimeout(() => { isSlow = true; slowCount++; notify(); }, SLOW_MS);
+  try {
+    return await fetch(url, options);
+  } finally {
+    clearTimeout(timer);
+    if (isSlow) { slowCount--; notify(); }
+  }
+}
+
+// 앱 시작 시 미리 서버를 깨워둔다 (스플래시/로그인 화면 보는 동안 기동)
+export function warmUpServer() {
+  serverFetch(`${BASE_URL}/api/symptoms`).catch(() => {});
+}
+
 export async function apiFetch(path, options = {}) {
   const url = `${BASE_URL}${path}`;
   let res;
   try {
-    res = await fetch(url, {
+    res = await serverFetch(url, {
       headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...options.headers },
       ...options,
     });

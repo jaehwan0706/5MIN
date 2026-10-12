@@ -19,7 +19,9 @@ import SignUpScreen      from './src/screens/SignUpScreen';
 import SocialSignupScreen from './src/screens/SocialSignupScreen';
 import FindAccountScreen from './src/screens/FindAccountScreen';
 import SplashScreen      from './src/screens/SplashScreen';
+import ServerWakeBanner  from './src/components/ServerWakeBanner';
 import { updateLocation, kakaoLogin, googleLogin } from './src/api/userApi';
+import { warmUpServer } from './src/api/client';
 import { Ionicons } from '@expo/vector-icons';
 
 const USER_KEY = 'fivemin_user';
@@ -237,14 +239,20 @@ function Main() {
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
 
+  // 스플래시가 보이는 동안 잠든 서버를 미리 깨움
+  useEffect(() => { warmUpServer(); }, []);
+
   return (
     <PhoneFrame>
       <SafeAreaProvider>
         <ThemeProvider>
-          {showSplash
-            ? <SplashScreen onFinish={() => setShowSplash(false)} />
-            : <Main />
-          }
+          <View style={{ flex: 1 }}>
+            {showSplash
+              ? <SplashScreen onFinish={() => setShowSplash(false)} />
+              : <Main />
+            }
+            <ServerWakeBanner />
+          </View>
         </ThemeProvider>
       </SafeAreaProvider>
     </PhoneFrame>
