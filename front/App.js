@@ -56,6 +56,9 @@ function Main() {
 
       if (errorParam) {
         window.history.replaceState({}, '', window.location.pathname);
+        // react-native-web 의 Alert.alert 는 웹에서 아무것도 띄우지 않으므로 window.alert 사용
+        console.error('[5MIN] Social login error:', errorParam);
+        window.alert(`소셜 로그인에 실패했습니다.\n\n${errorParam}`);
         setAuth('login');
         return;
       }
@@ -75,6 +78,7 @@ function Main() {
           })
           .catch(err => {
             console.error('[5MIN] OAuth code exchange error:', err);
+            window.alert(`소셜 로그인에 실패했습니다.\n\n${err.message || err}`);
             setAuth('login');
           });
         return;
