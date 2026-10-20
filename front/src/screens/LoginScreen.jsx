@@ -15,7 +15,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 const { width } = Dimensions.get('window');
 
-const KAKAO_REST_API_KEY = '6f1d69aede1067d118624fc26d3deee1';
+const KAKAO_REST_API_KEY = '8a3a9bc58b74482442229ffc8c950fb4';
 const GOOGLE_CLIENT_ID = '612745898680-79ji2g4q9vv68888dvquaqm9du6vk362.apps.googleusercontent.com';
 
 // OAuth 콜백은 백엔드(Render) 주소 기준 — Kakao/Google 콘솔의 Redirect URI 에도 동일하게 등록해야 함
@@ -149,7 +149,7 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
         `?client_id=${KAKAO_REST_API_KEY}` +
         `&redirect_uri=${encodeURIComponent(KAKAO_CALLBACK_URL)}` +
         `&response_type=code` +
-        `&scope=account_email,profile_nickname` +
+        `&scope=profile_nickname` +
         `&state=${encodeURIComponent(state)}`;
       return;
     }
@@ -160,7 +160,7 @@ export default function LoginScreen({ onLogin, onSignUp, onFindAccount, onLoginS
         `https://kauth.kakao.com/oauth/authorize` +
         `?client_id=${KAKAO_REST_API_KEY}` +
         `&response_type=code` +
-        `&scope=account_email,profile_nickname`;
+        `&scope=profile_nickname`;
       await openOAuthSession(authUrl, KAKAO_CALLBACK_URL);
     } catch (error) {
       console.error('[5MIN] Kakao Login Error:', error);
